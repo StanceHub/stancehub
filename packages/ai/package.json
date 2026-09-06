@@ -9,13 +9,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "echo \"lint pending\"",
-    "test": "echo \"no tests yet\"",
+    "test": "vitest run",
     "build": "echo \"source package\""
   },
   "dependencies": {
     "@stancehub/shared": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
   }
 }

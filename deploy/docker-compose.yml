@@ -1,6 +1,10 @@
+# Project name controls container prefixes (avoids "deploy-*" from this folder name).
+name: stancehub
+
 services:
-  db:
+  postgres:
     image: pgvector/pgvector:pg16
+    container_name: stancehub-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: stancehub
@@ -9,7 +13,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - stancehub_pg:/var/lib/postgresql/data
+      - stancehub_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stancehub -d stancehub"]
       interval: 5s
@@ -18,11 +22,12 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: stancehub-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - stancehub_redis:/data
+      - stancehub_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -30,5 +35,5 @@ services:
       retries: 10
 
 volumes:
-  stancehub_pg:
-  stancehub_redis:
+  stancehub_postgres_data:
+  stancehub_redis_data:
