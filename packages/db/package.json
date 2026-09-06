@@ -1,0 +1,29 @@
+{
+  "name": "@stancehub/db",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx src/migrate.ts",
+    "push": "drizzle-kit push",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"lint pending\"",
+    "test": "echo \"no tests yet\"",
+    "build": "echo \"source package\""
+  },
+  "dependencies": {
+    "@stancehub/shared": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "drizzle-kit": "^0.31.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

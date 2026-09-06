@@ -1,0 +1,33 @@
+{
+  "name": "@stancehub/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"lint pending\"",
+    "test": "echo \"no tests yet\""
+  },
+  "dependencies": {
+    "@stancehub/ai": "workspace:*",
+    "@stancehub/db": "workspace:*",
+    "@stancehub/shared": "workspace:*",
+    "better-auth": "^1.2.12",
+    "bullmq": "^5.34.8",
+    "drizzle-orm": "^0.45.2",
+    "ioredis": "^5.6.1",
+    "next": "^15.3.3",
+    "postgres": "^3.4.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "typescript": "^5.8.3"
+  }
+}

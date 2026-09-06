@@ -2,57 +2,52 @@
 
 Private MVP repository for **StanceHub** — self-hostable organizational meeting memory.
 
-> **Status:** Private while company/IP setup is pending. Not a public open-source launch yet.
+> **Status:** Sprint 0 scaffold. Private while company/IP setup is pending. Stub UI only (visual design later).
 
-## What we are building (v1)
-
-Upload / paste meeting transcripts → vault → **cited Q&A** → summaries + action items → basic tasks → Docker Compose self-host.
-
-Canonical product plan and detailed stack decisions live only in the private docs repo: [`StanceHub/stancehub-docs`](https://github.com/StanceHub/stancehub-docs) (`ARCHITECTURE-PLAN.md`, `MVP-ARCHITECTURE-AND-BOOTSTRAP.md`, `STACK-DECISIONS-DETAILED.md`). Do not copy planning docs into this code repo.
+Canonical plan: [`StanceHub/stancehub-docs`](https://github.com/StanceHub/stancehub-docs) → `ARCHITECTURE-PLAN.md`, `MVP-ARCHITECTURE-AND-BOOTSTRAP.md`.
 
 ## Stack (locked)
 
 | Layer | Choice |
 |---|---|
-| Language | TypeScript (pnpm monorepo + thin Turborepo) |
+| Language | TypeScript (pnpm monorepo + Turborepo) |
 | App | Next.js + Better Auth |
 | DB | PostgreSQL + pgvector |
 | Queue | Redis + BullMQ |
 | ORM | Drizzle |
-| AI | Pure `packages/ai` |
-| LLM | OpenAI-compatible API |
-| Ship | Docker Compose (`web`, `worker`, `db`, `redis`) |
+| AI | Pure `@stancehub/ai` (stubs in Sprint 0) |
+| Ship | Docker Compose (`db`, `redis`) |
 
-## Repo layout
-
-```text
-apps/web/          # Next.js UI + API
-apps/worker/       # embed / summarize jobs
-packages/db/       # Drizzle schema + migrations
-packages/ai/       # chunk, retrieve, cite, summarize
-packages/shared/   # shared types
-deploy/            # docker-compose
-docs/              # contributor / CLA notes
-```
-
-## Getting started
-
-Implementation starts in Sprint 0. Until then this repo holds governance + scaffolding.
+## Quick start (Sprint 0)
 
 ```bash
-# later, after Sprint 0 lands:
+# Node 20–24 (recommend 22). pnpm 9.15.x via packageManager / corepack.
+cp .env.example .env
+ln -sfn ../../.env apps/web/.env.local   # Next.js loads env from the app dir
 pnpm install
-docker compose -f deploy/docker-compose.yml up
+pnpm compose:up          # Postgres (:5433) + Redis (:6379)
+pnpm db:generate         # first time / after schema changes
+pnpm db:migrate
+pnpm dev                 # web :3000 + worker
 ```
 
-## Contributing (private team)
+- Health: `GET http://localhost:3000/api/health` → `{ ok: true, checks: { database, redis } }`
+- Sign up → creates org (Admin) → stub meetings list
+- “Enqueue BullMQ ping” verifies the worker
 
-1. Read `CONTRIBUTING.md` and `docs/CLA.md`
-2. Work on a branch; open a PR into `main`
-3. `CODEOWNERS` requires review from `@StanceHub/owners`
+> Postgres is mapped to host **5433** so it does not collide with a local Postgres on 5432.
+## Layout
 
-## License
+```text
+apps/web/          Next.js UI + API + Better Auth
+apps/worker/       BullMQ processors
+packages/db/       Drizzle schema + migrations
+packages/ai/       Pure AI helpers (stubs)
+packages/shared/   zod / jobs / roles
+packages/config/   shared tsconfig
+deploy/            docker-compose.yml
+```
 
-Copyright © StanceHub contributors.  
-**All rights reserved for now** (private MVP).  
-Public Community Edition is planned as **AGPLv3** only after IP/company decisions are settled — see docs repo.
+## Contributing
+
+See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs).
