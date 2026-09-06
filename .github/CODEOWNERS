@@ -1,0 +1,8 @@
+# Default owners for everything in this repository
+* @StanceHub/owners
+
+# Governance and legal-ish files
+/docs/ @StanceHub/owners
+/LICENSE @StanceHub/owners
+/CONTRIBUTING.md @StanceHub/owners
+/.github/ @StanceHub/owners

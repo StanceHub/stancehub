@@ -1,0 +1,15 @@
+{
+  "name": "stancehub",
+  "private": true,
+  "version": "0.0.1",
+  "description": "StanceHub MVP monorepo",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "echo \"Sprint 0: wire Next.js app next\"",
+    "lint": "echo \"not configured yet\"",
+    "test": "echo \"not configured yet\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

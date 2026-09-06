@@ -1,0 +1,16 @@
+# Sprint 0 scaffold — Postgres with pgvector. Web/worker services land next.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stancehub
+      POSTGRES_PASSWORD: stancehub
+      POSTGRES_DB: stancehub
+    ports:
+      - "5432:5432"
+    volumes:
+      - stancehub_pg:/var/lib/postgresql/data
+
+volumes:
+  stancehub_pg:
