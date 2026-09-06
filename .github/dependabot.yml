@@ -1,5 +1,8 @@
 # Dependabot — version updates for the StanceHub monorepo
 # Docs: https://docs.github.com/code-security/dependabot
+#
+# Security alerts are separate (GitHub Security tab) and already scan the lockfile.
+# Version-update PRs follow the schedule below (not instant on first commit).
 
 version: 2
 
@@ -8,8 +11,9 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      # Daily while the stack is young so updates show up without waiting a week.
+      # Switch back to weekly once noise is annoying.
+      interval: daily
       time: "09:00"
       timezone: Asia/Kolkata
     open-pull-requests-limit: 10
@@ -39,8 +43,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-      day: monday
+      interval: daily
       time: "09:00"
       timezone: Asia/Kolkata
     open-pull-requests-limit: 5
