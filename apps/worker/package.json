@@ -8,7 +8,7 @@
     "start": "tsx --env-file=../../.env src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"lint pending\"",
-    "test": "echo \"no tests yet\"",
+    "test": "vitest run",
     "build": "echo \"tsx runtime\""
   },
   "dependencies": {
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^22.15.30",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
   }
 }
