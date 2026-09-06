@@ -25,7 +25,7 @@ Canonical plan: [`StanceHub/stancehub-docs`](https://github.com/StanceHub/stance
 cp .env.example .env
 ln -sfn ../../.env apps/web/.env.local   # Next.js loads env from the app dir
 pnpm install
-pnpm compose:up          # Postgres (:5433) + Redis (:6379)
+pnpm compose:up          # containers: stancehub-postgres (:5433), stancehub-redis (:6379)
 pnpm db:generate         # first time / after schema changes
 pnpm db:migrate
 pnpm dev                 # web :3000 + worker
