@@ -37,13 +37,18 @@ By contributing to this repository (opening a PR or merging code), you agree tha
 2. You grant StanceHub and its maintainers a perpetual, worldwide, royalty-free license to use, review, modify, sublicense, and distribute your contribution as part of StanceHub products (including Community Edition, Cloud, and Enterprise).
 3. You understand the project may later relicense Community Edition under AGPLv3 and keep Enterprise modules proprietary (open-core), consistent with `stancehub-docs`.
 
-**How to accept (for now):** In your first PR description, include:
+**How to accept:** On your first pull request, the CLA Assistant bot will comment.
+Reply with exactly:
 
 ```text
-I have read docs/CLA.md and agree to the Contributor License Agreement.
+I have read the CLA Document and I hereby sign the CLA
 ```
 
-Later we may add an automated CLA bot. No custom domain email is required for this.
+That signature is stored under `signatures/version1/cla.json`. You only sign once.
+You can also check the box in the PR template; the **bot comment** is what records the CLA.
+
+Bots on the allowlist (`dependabot[bot]`, `github-actions[bot]`, etc.) are exempt.
+No custom domain email is required.
 
 ## Company / IP note
 

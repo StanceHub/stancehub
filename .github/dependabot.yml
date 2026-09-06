@@ -1,0 +1,52 @@
+# Dependabot — version updates for the StanceHub monorepo
+# Docs: https://docs.github.com/code-security/dependabot
+
+version: 2
+
+updates:
+  # Root pnpm workspace (apps/* + packages/* resolved via the workspace lockfile)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # Batch routine bumps to reduce PR noise
+      production-deps:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development-deps:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Major bumps stay manual until Sprint 0 stack is stable
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions used in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: chore
+      include: scope

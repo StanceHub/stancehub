@@ -7,6 +7,7 @@
 
 ## CLA
 - [ ] I have read `docs/CLA.md` and agree to the Contributor License Agreement
+- [ ] I replied on this PR with: `I have read the CLA Document and I hereby sign the CLA` (first-time contributors; required by CLA bot)
 
 ## Test plan
 - [ ] Described how this was verified (or N/A for docs-only)
