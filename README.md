@@ -8,18 +8,20 @@ Private MVP repository for **StanceHub** — self-hostable organizational meetin
 
 Upload / paste meeting transcripts → vault → **cited Q&A** → summaries + action items → basic tasks → Docker Compose self-host.
 
-Canonical product plan lives in the private docs repo: [`StanceHub/stancehub-docs`](https://github.com/StanceHub/stancehub-docs) → `ARCHITECTURE-PLAN.md`.
+Canonical product plan and detailed stack decisions live only in the private docs repo: [`StanceHub/stancehub-docs`](https://github.com/StanceHub/stancehub-docs) (`ARCHITECTURE-PLAN.md`, `MVP-ARCHITECTURE-AND-BOOTSTRAP.md`, `STACK-DECISIONS-DETAILED.md`). Do not copy planning docs into this code repo.
 
 ## Stack (locked)
 
 | Layer | Choice |
 |---|---|
-| Language | TypeScript (pnpm monorepo) |
-| App | Next.js |
+| Language | TypeScript (pnpm monorepo + thin Turborepo) |
+| App | Next.js + Better Auth |
 | DB | PostgreSQL + pgvector |
+| Queue | Redis + BullMQ |
 | ORM | Drizzle |
+| AI | Pure `packages/ai` |
 | LLM | OpenAI-compatible API |
-| Ship | Docker Compose (`web`, `worker`, `db`) |
+| Ship | Docker Compose (`web`, `worker`, `db`, `redis`) |
 
 ## Repo layout
 
