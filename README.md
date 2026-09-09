@@ -50,4 +50,4 @@ deploy/            docker-compose.yml
 
 ## Contributing
 
-See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs).
+See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs). Accepted limits: `docs/KNOWN-GAPS.md`.

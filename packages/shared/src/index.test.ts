@@ -3,9 +3,11 @@ import {
   JOB_NAMES,
   QUEUE_NAME,
   citationSchema,
-  isAdmin,
-  pingJobPayloadSchema,
+  embedJobId,
   embedMeetingPayloadSchema,
+  isAdmin,
+  isLiveEmbedJobState,
+  pingJobPayloadSchema,
 } from "./index";
 
 describe("roles", () => {
@@ -32,6 +34,15 @@ describe("jobs", () => {
 
   it("rejects invalid embed payloads", () => {
     expect(() => embedMeetingPayloadSchema.parse({ organizationId: "" })).toThrow();
+  });
+
+  it("defaults a missing embed generation and treats only live queue states as running", () => {
+    expect(embedMeetingPayloadSchema.parse({ organizationId: "org", meetingId: "m1" }).generation).toBe(1);
+    expect(embedJobId("m1", 2)).toBe("embed:m1:2");
+    expect(isLiveEmbedJobState("active")).toBe(true);
+    expect(isLiveEmbedJobState("waiting")).toBe(true);
+    expect(isLiveEmbedJobState("failed")).toBe(false);
+    expect(isLiveEmbedJobState("missing")).toBe(false);
   });
 });
 

@@ -1,20 +1,26 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import Link from "next/link";
+import { desc, eq } from "drizzle-orm";
 import { meetings } from "@stancehub/db";
-import { requireSession } from "@/server/rbac";
 import { getDb } from "@/server/db";
+import { requireOrgSession } from "@/server/org";
 import { PingButton } from "./ping-button";
+import { RetryButton } from "./retry-button";
 import { SignOutButton } from "./sign-out-button";
+import { UploadForm } from "./upload-form";
 
 export default async function MeetingsPage() {
-  const session = await requireSession();
-  if (!session) {
-    redirect("/login");
-  }
+  const access = await requireOrgSession();
+  if (!access) redirect("/login");
 
-  const orgId = session.session.activeOrganizationId;
+  const orgId = access.organizationId;
   const rows = orgId
-    ? await getDb().select().from(meetings).where(eq(meetings.organizationId, orgId)).limit(50)
+    ? await getDb()
+        .select()
+        .from(meetings)
+        .where(eq(meetings.organizationId, orgId))
+        .orderBy(desc(meetings.createdAt))
+        .limit(50)
     : [];
 
   return (
@@ -24,7 +30,7 @@ export default async function MeetingsPage() {
         <SignOutButton />
       </div>
       <p>
-        Signed in as <strong>{session.user.email}</strong>
+        Signed in as <strong>{access.session.user.email}</strong>
         {orgId ? (
           <>
             {" "}
@@ -34,18 +40,29 @@ export default async function MeetingsPage() {
           <> · no active organization</>
         )}
       </p>
-      <p style={{ color: "#666" }}>
-        Stub UI — upload and cited Q&amp;A land in Sprint 1–2. Visual design later.
+      <p>
+        <Link href="/search">Search vault</Link>
       </p>
+      <UploadForm />
       <PingButton />
       <h2 style={{ marginTop: 24 }}>List</h2>
       {rows.length === 0 ? (
         <p>No meetings yet.</p>
       ) : (
         <ul>
-          {rows.map((m) => (
-            <li key={m.id}>
-              {m.title} <small>({m.pipelineStatus})</small>
+          {rows.map((meeting) => (
+            <li key={meeting.id}>
+              {meeting.title} <small>({meeting.pipelineStatus})</small>
+              {meeting.pipelineError ? <small> — {meeting.pipelineError}</small> : null}
+              {access.isAdmin &&
+              (meeting.pipelineStatus === "failed" ||
+                meeting.pipelineStatus === "pending" ||
+                meeting.pipelineStatus === "embedding") ? (
+                <>
+                  {" "}
+                  <RetryButton meetingId={meeting.id} />
+                </>
+              ) : null}
             </li>
           ))}
         </ul>
