@@ -16,7 +16,9 @@
     "@stancehub/shared": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^22.15.30",
     "typescript": "^5.8.3",
-    "vitest": "^2.1.9"
+    "vite": "6.4.3",
+    "vitest": "^4.1.11"
   }
 }
