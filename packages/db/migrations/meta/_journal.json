@@ -8,6 +8,27 @@
       "when": 1788679078549,
       "tag": "0000_charming_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788960000000,
+      "tag": "0001_vault",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788963600000,
+      "tag": "0002_chunk_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788967200000,
+      "tag": "0003_embed_generation",
+      "breakpoints": true
     }
   ]
 }

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo \"lint pending\"",
     "test": "vitest run",
+    "test:integration": "vitest run src/embed.integration.test.ts",
     "build": "echo \"tsx runtime\""
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "@stancehub/db": "workspace:*",
     "@stancehub/shared": "workspace:*",
     "bullmq": "^5.34.8",
+    "drizzle-orm": "^0.45.2",
     "ioredis": "^5.6.1"
   },
   "devDependencies": {

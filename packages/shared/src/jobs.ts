@@ -19,9 +19,27 @@ export type PingJobPayload = z.infer<typeof pingJobPayloadSchema>;
 export const embedMeetingPayloadSchema = z.object({
   organizationId: z.string().min(1),
   meetingId: z.string().min(1),
+  generation: z.number().int().positive().default(1),
 });
 
 export type EmbedMeetingPayload = z.infer<typeof embedMeetingPayloadSchema>;
+
+export function embedJobId(meetingId: string, generation: number) {
+  return `embed:${meetingId}:${generation}`;
+}
+
+const LIVE_EMBED_JOB_STATES = new Set([
+  "active",
+  "waiting",
+  "delayed",
+  "waiting-children",
+  "prioritized",
+  "paused",
+]);
+
+export function isLiveEmbedJobState(state: string) {
+  return LIVE_EMBED_JOB_STATES.has(state);
+}
 
 export const summarizeMeetingPayloadSchema = z.object({
   organizationId: z.string().min(1),
