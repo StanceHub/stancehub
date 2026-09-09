@@ -125,4 +125,5 @@ Search/ask emit structured console metrics (query length, counts, latency). Prom
 | Ask over org tasks (status/assignee) | #45 |
 | Backup / restore / DR runbook | #46 |
 | CI Better Auth ↔ Drizzle schema drift | #47 |
+| Stronger per-tenant isolation beyond org-row filters | #49 |
 | Documented embed/summarize enqueue crash gaps | this file (until #43) |
