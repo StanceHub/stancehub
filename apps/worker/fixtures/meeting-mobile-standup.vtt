@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.000
+<v Maya>Standup for the mobile app. We need a ship decision on push notifications.</v>
+
+00:00:04.250 --> 00:00:08.000
+<v Chris>Customers keep asking for silent push for order updates, not marketing blasts.</v>
+
+00:00:08.250 --> 00:00:12.000
+<v Maya>Decision: ship silent push for order status only. Marketing push waits for consent UI.</v>
+
+00:00:12.250 --> 00:00:16.000
+<v Chris>I will own the iOS entitlement and the server topic mapping by Friday.</v>
+
+00:00:16.250 --> 00:00:20.000
+<v Maya>Android can reuse the same topic names. No new vendor this sprint.</v>

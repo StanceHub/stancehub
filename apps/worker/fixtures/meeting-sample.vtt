@@ -1,0 +1,391 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:08.000
+<v Priya>Thanks for hopping on. I want to lock the next two weeks of the roadmap before anyone gets pulled into support.</v>
+
+00:00:08.250 --> 00:00:14.950
+<v Alex>Sounds good. I have two blockers, but they are both short if we make the call today.</v>
+
+00:00:15.200 --> 00:00:22.500
+<v Sam>I brought the latest mockups. I would rather we pick a direction than polish three versions.</v>
+
+00:00:22.750 --> 00:00:29.150
+<v Jordan>I can take notes and own the follow-ups so nothing sits in the chat thread again.</v>
+
+00:00:29.400 --> 00:00:37.400
+<v Priya>Perfect. Agenda is the billing milestone, the missed pricing decision, then owners and a check-in date.</v>
+
+00:00:37.650 --> 00:00:44.050
+<v Alex>Before billing, can we confirm we are still shipping the invite flow this sprint?</v>
+
+00:00:44.300 --> 00:00:51.100
+<v Priya>Yes. Invite by email stays in. The share-link version is the thing we did not decide.</v>
+
+00:00:51.350 --> 00:00:59.350
+<v Sam>I assumed share links were out until we had expiry and revoke. That may have been my assumption only.</v>
+
+00:00:59.600 --> 00:01:06.400
+<v Jordan>That is the missed decision. We talked about it twice and never wrote down yes or no.</v>
+
+00:01:06.650 --> 00:01:13.650
+<v Alex>If share links slip, I can finish email invites by Thursday without touching auth again.</v>
+
+00:01:13.900 --> 00:01:20.400
+<v Priya>Then let us decide it now. Share links are out of this sprint. Email invites only.</v>
+
+00:01:20.650 --> 00:01:26.350
+<v Sam>Good. I will hide the copy-link control so we do not ship a dead button.</v>
+
+00:01:26.600 --> 00:01:31.200
+<v Jordan>I will note that as decided, owner Priya, effective today.</v>
+
+00:01:31.450 --> 00:01:39.450
+<v Priya>Next is the roadmap slide. We promised customers a simple trial, then a paid seat, then admin controls.</v>
+
+00:01:39.700 --> 00:01:46.700
+<v Alex>Trial length is still fuzzy. Sales said fourteen days. Support thought seven was enough.</v>
+
+00:01:46.950 --> 00:01:52.450
+<v Sam>Seven days made the empty-state screens feel rushed in the prototype.</v>
+
+00:01:52.700 --> 00:02:00.700
+<v Jordan>Fourteen days also changes when we send the upgrade email. That is a copy and cron change, not just a number.</v>
+
+00:02:00.950 --> 00:02:08.950
+<v Priya>I do not want to reopen that without a default. I am proposing fourteen days, one reminder on day ten.</v>
+
+00:02:09.200 --> 00:02:16.400
+<v Alex>Engineering can live with that. The reminder job already exists. We just change the offset.</v>
+
+00:02:16.650 --> 00:02:23.450
+<v Sam>I will update the trial banner so it shows days remaining, not a vague upgrade prompt.</v>
+
+00:02:23.700 --> 00:02:27.700
+<v Jordan>Owner for the trial banner copy?</v>
+
+00:02:27.950 --> 00:02:34.850
+<v Sam>I can own the banner and the empty states. Priya can review the wording before we ship.</v>
+
+00:02:35.100 --> 00:02:40.100
+<v Priya>Agreed. Sam owns the trial UI copy. I will review by Wednesday.</v>
+
+00:02:40.350 --> 00:02:47.650
+<v Alex>Billing itself is still card-on-file at the end of trial, not mid-trial. Is that still true?</v>
+
+00:02:47.900 --> 00:02:53.500
+<v Priya>Yes. No charge until the trial ends, and we email them the day before.</v>
+
+00:02:53.750 --> 00:03:01.150
+<v Jordan>Support asked what happens if the card fails. Do we lock the workspace or leave it read-only?</v>
+
+00:03:01.400 --> 00:03:07.200
+<v Alex>We never decided that either. Last sprint we only handled the happy path.</v>
+
+00:03:07.450 --> 00:03:12.650
+<v Priya>Then that is the second missed decision. Failed payment behavior.</v>
+
+00:03:12.900 --> 00:03:19.700
+<v Sam>From a design side, read-only is kinder. A hard lock looks like we deleted their work.</v>
+
+00:03:19.950 --> 00:03:27.150
+<v Alex>Read-only is also less code this sprint. Locking means a new gate on every write endpoint.</v>
+
+00:03:27.400 --> 00:03:34.500
+<v Jordan>I would rather we pick read-only and tell support exactly what the customer still can do.</v>
+
+00:03:34.750 --> 00:03:42.650
+<v Priya>Decision: failed payment puts the workspace in read-only for seven days, then we pause the account.</v>
+
+00:03:42.900 --> 00:03:50.500
+<v Alex>I can own the read-only flag. I need the product rule in writing so we do not invent exceptions.</v>
+
+00:03:50.750 --> 00:03:58.350
+<v Priya>I will write the rule today. Jordan, can you put it in the decision log before standup tomorrow?</v>
+
+00:03:58.600 --> 00:04:05.800
+<v Jordan>Yes. I will add both decisions, share links out and failed payment read-only, with owners.</v>
+
+00:04:06.050 --> 00:04:12.150
+<v Sam>Should the roadmap still show admin controls in sprint two, or did that move?</v>
+
+00:04:12.400 --> 00:04:20.400
+<v Priya>Admin controls stay in sprint two. This sprint is invite, trial banner, and failed-payment read-only.</v>
+
+00:04:20.650 --> 00:04:28.150
+<v Alex>Role checks for admin can wait. I do not want a half-built permissions model in the invite PR.</v>
+
+00:04:28.400 --> 00:04:34.800
+<v Sam>I will stop showing an admin badge in the invite mock. It was confusing testers.</v>
+
+00:04:35.050 --> 00:04:39.050
+<v Jordan>Who is reviewing the invite email template?</v>
+
+00:04:39.300 --> 00:04:45.600
+<v Priya>I will review subject lines. Sam owns the body layout. Alex owns the send path.</v>
+
+00:04:45.850 --> 00:04:52.950
+<v Alex>The send path is mostly done. The gap is the resend button and the already-invited state.</v>
+
+00:04:53.200 --> 00:04:58.400
+<v Sam>I have those two states. I can hand them to Alex after this call.</v>
+
+00:04:58.650 --> 00:05:05.350
+<v Alex>If I get them today, Thursday still holds. If they slip to Friday, we miss the demo.</v>
+
+00:05:05.600 --> 00:05:09.600
+<v Priya>Sam, can you send those states by three?</v>
+
+00:05:09.850 --> 00:05:15.650
+<v Sam>Yes. Three o'clock. I will drop them in the design channel and ping Alex.</v>
+
+00:05:15.900 --> 00:05:21.700
+<v Jordan>I will add that as a follow-up: Sam to Alex by three, invite states only.</v>
+
+00:05:21.950 --> 00:05:28.850
+<v Priya>Let us talk capacity. Alex, are you the only engineer on this, or is someone else free?</v>
+
+00:05:29.100 --> 00:05:37.100
+<v Alex>Just me this sprint. Jordan is on the data pull for sales, and I do not want to split the auth code.</v>
+
+00:05:37.350 --> 00:05:44.350
+<v Jordan>The sales pull is a half day. I can pair on the read-only tests on Friday if that helps.</v>
+
+00:05:44.600 --> 00:05:51.000
+<v Alex>That would help. I will leave the failing cases sketched so you can fill them in.</v>
+
+00:05:51.250 --> 00:05:58.050
+<v Priya>Good. Do not expand scope to cover team size or SSO. Those stay on the later roadmap.</v>
+
+00:05:58.300 --> 00:06:06.300
+<v Sam>Customers keep asking about Google sign-in. Are we allowed to say it is planned, or should we stay quiet?</v>
+
+00:06:06.550 --> 00:06:11.850
+<v Priya>Say it is on the roadmap for the quarter, not this sprint. No date.</v>
+
+00:06:12.100 --> 00:06:17.200
+<v Jordan>I will give support that line so we stop improvising in tickets.</v>
+
+00:06:17.450 --> 00:06:25.450
+<v Alex>One risk: the invite table has no index on email. Resend will get slow once we pass a few thousand rows.</v>
+
+00:06:25.700 --> 00:06:29.700
+<v Priya>Is that a this-sprint fix or a note?</v>
+
+00:06:29.950 --> 00:06:35.550
+<v Alex>A small migration. I can own it inside the invite PR if nobody objects.</v>
+
+00:06:35.800 --> 00:06:42.100
+<v Priya>Own it. Keep the migration boring. No data backfill unless you find duplicates.</v>
+
+00:06:42.350 --> 00:06:49.550
+<v Sam>While we are on invite, the success toast currently says sent. It should name the address.</v>
+
+00:06:49.800 --> 00:06:55.400
+<v Alex>Easy if the API returns the address. I will include it in the response.</v>
+
+00:06:55.650 --> 00:07:01.750
+<v Jordan>I will add a test case to the QA list: invite, resend, and a duplicate email.</v>
+
+00:07:02.000 --> 00:07:08.100
+<v Priya>Duplicate should say they already have access, not that we sent another mail.</v>
+
+00:07:08.350 --> 00:07:13.150
+<v Sam>I will write that error state. Short copy, no apology essay.</v>
+
+00:07:13.400 --> 00:07:18.800
+<v Alex>Good. Long error copy is how we end up with three different strings.</v>
+
+00:07:19.050 --> 00:07:25.050
+<v Priya>Let us look at the roadmap order after this sprint so sales is not guessing.</v>
+
+00:07:25.300 --> 00:07:32.300
+<v Jordan>I have sales asking for export, audit log, and a manager view. They want all three next.</v>
+
+00:07:32.550 --> 00:07:40.550
+<v Priya>We cannot do all three. I want export first because finance asked, then audit log, then manager view.</v>
+
+00:07:40.800 --> 00:07:48.500
+<v Sam>Export is mostly a download button and a column picker. I can sketch that without a full project.</v>
+
+00:07:48.750 --> 00:07:55.150
+<v Alex>Audit log needs a write on every sensitive action. That is bigger than it looks.</v>
+
+00:07:55.400 --> 00:08:01.400
+<v Priya>Then we do not start audit log until export is in review. No parallel epics.</v>
+
+00:08:01.650 --> 00:08:05.650
+<v Jordan>Owner for the export sketch?</v>
+
+00:08:05.900 --> 00:08:12.800
+<v Sam>I will own the sketch. Priya, I need the column list by tomorrow or I will guess wrong.</v>
+
+00:08:13.050 --> 00:08:19.650
+<v Priya>I will send the column list by noon tomorrow. Name, email, role, last active, plan.</v>
+
+00:08:19.900 --> 00:08:27.400
+<v Alex>If plan is a column, I need billing to expose it. That is a small endpoint, not a new service.</v>
+
+00:08:27.650 --> 00:08:33.850
+<v Jordan>Should I schedule a ten-minute billing check with finance, or is email enough?</v>
+
+00:08:34.100 --> 00:08:41.100
+<v Priya>Email is enough. I will copy finance so they can correct the columns before Sam designs.</v>
+
+00:08:41.350 --> 00:08:46.550
+<v Sam>Please do. Last time we designed seats and they meant workspaces.</v>
+
+00:08:46.800 --> 00:08:53.600
+<v Alex>Speaking of names, are we still calling it a workspace, or did someone revert to team?</v>
+
+00:08:53.850 --> 00:09:01.850
+<v Priya>Workspace. We decided that in March and then the website still says team. That is a follow-up, not a rebuild.</v>
+
+00:09:02.100 --> 00:09:08.100
+<v Jordan>I will file a copy ticket for the website. Owner can be me, review by Priya.</v>
+
+00:09:08.350 --> 00:09:12.350
+<v Priya>Yes. Do not restyle the page. Change the noun.</v>
+
+00:09:12.600 --> 00:09:18.800
+<v Sam>I will match the in-app empty states to workspace so we do not ship two words.</v>
+
+00:09:19.050 --> 00:09:26.750
+<v Alex>The API field can stay team_id for now. Renaming the column is not worth a migration this sprint.</v>
+
+00:09:27.000 --> 00:09:35.000
+<v Priya>Agreed. User-facing word is workspace. Internal field stays. Write that down so we do not relitigate.</v>
+
+00:09:35.250 --> 00:09:40.450
+<v Jordan>Added. I will put it under naming, not under the billing decision.</v>
+
+00:09:40.700 --> 00:09:48.000
+<v Priya>Let us close the loop on last week's missed decision so it does not come back as a surprise.</v>
+
+00:09:48.250 --> 00:09:53.850
+<v Alex>Which one, the share link, or the thing about whether trials can stack?</v>
+
+00:09:54.100 --> 00:10:01.100
+<v Priya>Trials stacking. We never said if a second invite extends the trial or starts a new one.</v>
+
+00:10:01.350 --> 00:10:07.850
+<v Sam>If they stack, the banner math gets messy. I would rather one trial per workspace.</v>
+
+00:10:08.100 --> 00:10:15.500
+<v Alex>One trial per workspace is what the code does today, by accident. We should make it the rule.</v>
+
+00:10:15.750 --> 00:10:21.250
+<v Priya>Decision: one trial per workspace. A second invite does not add days.</v>
+
+00:10:21.500 --> 00:10:28.300
+<v Jordan>Owner Priya for the rule, Alex for the enforcement. I will log it with the other two.</v>
+
+00:10:28.550 --> 00:10:35.050
+<v Sam>I will add a small note on the banner if they were invited into an existing trial.</v>
+
+00:10:35.300 --> 00:10:41.200
+<v Alex>Do not promise a date in that note. Just say the trial is already running.</v>
+
+00:10:41.450 --> 00:10:45.450
+<v Sam>Understood. I will keep it to one sentence.</v>
+
+00:10:45.700 --> 00:10:50.500
+<v Priya>Follow-ups before we run out of time. Jordan, read them back.</v>
+
+00:10:50.750 --> 00:10:54.850
+<v Jordan>One: Sam sends invite states to Alex by three today.</v>
+
+00:10:55.100 --> 00:11:02.100
+<v Jordan>Two: Priya writes the failed-payment rule today, and I log it before tomorrow's standup.</v>
+
+00:11:02.350 --> 00:11:07.050
+<v Jordan>Three: Priya sends the export column list by noon tomorrow.</v>
+
+00:11:07.300 --> 00:11:12.900
+<v Jordan>Four: I file the website copy ticket to say workspace instead of team.</v>
+
+00:11:13.150 --> 00:11:18.950
+<v Alex>Add five: I include the email index migration in the invite pull request.</v>
+
+00:11:19.200 --> 00:11:25.200
+<v Jordan>Got it. Five items. I will post them in the channel within fifteen minutes.</v>
+
+00:11:25.450 --> 00:11:32.750
+<v Priya>Demo is Friday at two. We show invite, the trial banner, and read-only if the flag is ready.</v>
+
+00:11:33.000 --> 00:11:39.800
+<v Alex>Read-only might be behind a flag. I would rather show it unfinished than slip invite.</v>
+
+00:11:40.050 --> 00:11:45.650
+<v Priya>Invite is the demo. Read-only is a bonus. Do not risk Thursday for it.</v>
+
+00:11:45.900 --> 00:11:51.100
+<v Sam>I will join the demo prep on Thursday at four if that still works.</v>
+
+00:11:51.350 --> 00:11:56.650
+<v Alex>Four works. I will have a staging workspace with a fake trial date.</v>
+
+00:11:56.900 --> 00:12:01.200
+<v Jordan>I will sit in and watch for copy that still says team.</v>
+
+00:12:01.450 --> 00:12:05.750
+<v Priya>Anything else that would block Friday if we ignore it?</v>
+
+00:12:06.000 --> 00:12:13.400
+<v Alex>Only the staging email provider. It rate-limits after twenty sends. I will use the test sink.</v>
+
+00:12:13.650 --> 00:12:19.950
+<v Sam>And the banner still uses the old illustration. I will swap it before Thursday.</v>
+
+00:12:20.200 --> 00:12:27.000
+<v Priya>Then we are set. Same meeting next week, shorter if the follow-ups are actually done.</v>
+
+00:12:27.250 --> 00:12:34.250
+<v Jordan>I will chase anything still open on Monday morning so we do not discover it in the room.</v>
+
+00:12:34.500 --> 00:12:40.900
+<v Alex>Thanks. I will start the invite PR after this and tag Sam when I need the states.</v>
+
+00:12:41.150 --> 00:12:48.150
+<v Sam>I will mute Slack until three and finish those states. Ping me if the copy needs a pass.</v>
+
+00:12:48.400 --> 00:12:53.600
+<v Priya>One last check. Who is the owner if the reminder email copy slips?</v>
+
+00:12:53.850 --> 00:12:59.750
+<v Sam>I will own the reminder copy as well, same review with Priya on Wednesday.</v>
+
+00:13:00.000 --> 00:13:07.000
+<v Alex>If the copy is late I can still ship the job with a placeholder, but I would rather not.</v>
+
+00:13:07.250 --> 00:13:13.250
+<v Priya>Do not ship a placeholder. Hold the reminder until the sentence is reviewed.</v>
+
+00:13:13.500 --> 00:13:19.600
+<v Jordan>I will add that as follow-up six, so it does not hide inside the banner task.</v>
+
+00:13:19.850 --> 00:13:27.850
+<v Alex>Also, who tells support about read-only before Friday? I do not want them learning it from a ticket.</v>
+
+00:13:28.100 --> 00:13:35.700
+<v Priya>Jordan owns that note to support, after I write the rule. Keep it to what they can still click.</v>
+
+00:13:35.950 --> 00:13:41.950
+<v Sam>I can attach a screenshot of the banner once the days-remaining text is in.</v>
+
+00:13:42.200 --> 00:13:49.200
+<v Jordan>Helpful. I will wait for the screenshot so the note matches what they will actually see.</v>
+
+00:13:49.450 --> 00:13:57.450
+<v Priya>Good. That is the plan. Roadmap stays invite, then export, then audit log. We are not adding a fourth thing.</v>
+
+00:13:57.700 --> 00:14:03.300
+<v Alex>I will decline any SSO questions in review comments until next quarter.</v>
+
+00:14:03.550 --> 00:14:10.350
+<v Sam>Same here. If a tester asks, I will point them at the roadmap note Jordan is writing.</v>
+
+00:14:10.600 --> 00:14:17.100
+<v Jordan>I will post the decisions and the six follow-ups, then I am done for this meeting.</v>
+
+00:14:17.350 --> 00:14:25.350
+<v Priya>Great. Thanks everyone. Decision log and follow-ups before the end of day, then we stop debating this in chat.</v>

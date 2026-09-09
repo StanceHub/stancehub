@@ -1,17 +1,20 @@
 export type EmbeddingRequest = {
   url: string;
-  body: { model: string; input: string[] };
+  body: { model: string; input: string[]; dimensions?: number };
 };
 
 export function buildEmbeddingRequest(opts: {
   baseUrl: string;
   model: string;
   input: string[];
+  dimensions?: number;
 }): EmbeddingRequest {
   const base = opts.baseUrl.replace(/\/$/, "");
+  const body: EmbeddingRequest["body"] = { model: opts.model, input: opts.input };
+  if (opts.dimensions != null) body.dimensions = opts.dimensions;
   return {
     url: `${base}/embeddings`,
-    body: { model: opts.model, input: opts.input },
+    body,
   };
 }
 
@@ -25,6 +28,7 @@ export function createEmbeddingClient(opts: {
   baseUrl: string;
   apiKey: string;
   model: string;
+  dimensions?: number;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }): EmbeddingClient {
@@ -37,6 +41,7 @@ export function createEmbeddingClient(opts: {
         baseUrl: opts.baseUrl,
         model: opts.model,
         input: texts,
+        dimensions: opts.dimensions,
       });
       const response = await fetchImpl(request.url, {
         method: "POST",
@@ -63,11 +68,17 @@ export function createEmbeddingClient(opts: {
   };
 }
 
-export function createLlmClient(opts: { baseUrl: string; apiKey: string; model?: string }) {
+export function createLlmClient(opts: {
+  baseUrl: string;
+  apiKey: string;
+  model?: string;
+  dimensions?: number;
+}) {
   const embeddings = createEmbeddingClient({
     baseUrl: opts.baseUrl,
     apiKey: opts.apiKey,
     model: opts.model ?? "",
+    dimensions: opts.dimensions,
   });
   return {
     embed(texts: string[]) {

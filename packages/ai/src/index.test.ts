@@ -99,6 +99,16 @@ describe("embedding request", () => {
     expect(request.body).toEqual({ model: "embed", input: ["hello"] });
   });
 
+  it("includes the requested vector size when one is configured", () => {
+    const request = buildEmbeddingRequest({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      model: "embed",
+      input: ["hello"],
+      dimensions: 768,
+    });
+    expect(request.body).toEqual({ model: "embed", input: ["hello"], dimensions: 768 });
+  });
+
   it("aborts an embeddings request that exceeds the timeout", async () => {
     const client = createEmbeddingClient({
       baseUrl: "http://127.0.0.1:8080/v1",

@@ -17,7 +17,8 @@ import { processEmbedMeeting } from "./processors/embed-meeting";
 
 const enabled = process.env.RUN_INTEGRATION === "1";
 const samplePath =
-  process.env.TRANSCRIPT_FIXTURE ?? "/Users/jassu/Downloads/stancehub-meeting-sample.vtt";
+  process.env.TRANSCRIPT_FIXTURE ??
+  new URL("../fixtures/meeting-sample.vtt", import.meta.url).pathname;
 
 describe.skipIf(!enabled)("embed vault integration", () => {
   const organizationId = `org_it_${Date.now()}`;
@@ -59,6 +60,7 @@ describe.skipIf(!enabled)("embed vault integration", () => {
     const stored = await db.select().from(chunks).where(eq(chunks.meetingId, meetingId));
     expect(stored.length).toBe(result.chunks);
     expect(stored[0]?.embedding.length).toBe(768);
+    expect(stored.every((row) => row.tokenCount > 0)).toBe(true);
 
     const keyword = await searchChunksByKeyword(db, {
       organizationId,
@@ -72,6 +74,7 @@ describe.skipIf(!enabled)("embed vault integration", () => {
       baseUrl: process.env.LLM_BASE_URL ?? "",
       apiKey: process.env.LLM_API_KEY ?? "",
       model: envModel,
+      dimensions: Number(process.env.EMBEDDING_DIMENSIONS ?? "768"),
     });
     const [embedding] = await client.embed(["roadmap decision"]);
     const vector = await searchChunksByVector(db, {

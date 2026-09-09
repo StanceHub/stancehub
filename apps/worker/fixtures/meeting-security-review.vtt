@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.000
+<v Leah>Security review. Topic is customer export and redaction before support tickets leave the vault.</v>
+
+00:00:04.250 --> 00:00:09.000
+<v Omar>We almost shipped raw transcript snippets in email. That is the incident we need to close.</v>
+
+00:00:09.250 --> 00:00:14.000
+<v Leah>Decision: support exports must strip speaker names and phone numbers before send.</v>
+
+00:00:14.250 --> 00:00:18.000
+<v Omar>I will add the redaction pass in the export worker and a unit fixture with a phone number.</v>
+
+00:00:18.250 --> 00:00:22.000
+<v Leah>Hold the public API for exports until that lands. Internal UI can stay.</v>

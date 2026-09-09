@@ -9,6 +9,8 @@ export type TextChunk = {
   endMs: number | null;
 };
 
+export const DEFAULT_CHUNK_MAX_CHARS = 480;
+
 function sliceBound(text: string, start: number, maxChars: number) {
   const hardEnd = Math.min(start + maxChars, text.length);
   if (hardEnd === text.length) return text.length;
@@ -27,7 +29,7 @@ function sliceBound(text: string, start: number, maxChars: number) {
   return hardEnd;
 }
 
-export function chunkText(text: string, maxChars = 1200): TextChunk[] {
+export function chunkText(text: string, maxChars = DEFAULT_CHUNK_MAX_CHARS): TextChunk[] {
   const trimmed = text.trim();
   if (!trimmed) return [];
   const chunks: TextChunk[] = [];
@@ -52,7 +54,7 @@ export function chunkText(text: string, maxChars = 1200): TextChunk[] {
   return chunks;
 }
 
-export function chunkCues(cues: TranscriptCue[], maxChars = 1200): TextChunk[] {
+export function chunkCues(cues: TranscriptCue[], maxChars = DEFAULT_CHUNK_MAX_CHARS): TextChunk[] {
   if (cues.length === 0) return [];
   const chunks: TextChunk[] = [];
   let buffer: TranscriptCue[] = [];

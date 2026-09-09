@@ -1,0 +1,35 @@
+[
+  {
+    "fixture": "meeting-sample.vtt",
+    "title": "Planning sample",
+    "goldens": [
+      { "query": "share links sprint", "needle": "share links are out of this sprint" },
+      { "query": "failed payment read-only", "needle": "read-only for seven days" },
+      { "query": "roadmap admin controls", "needle": "admin controls stay in sprint two" }
+    ]
+  },
+  {
+    "fixture": "meeting-mobile-standup.vtt",
+    "title": "Mobile standup",
+    "goldens": [
+      { "query": "silent push order status", "needle": "silent push for order status only" },
+      { "query": "marketing push consent", "needle": "Marketing push waits for consent UI" }
+    ]
+  },
+  {
+    "fixture": "meeting-security-review.vtt",
+    "title": "Security review",
+    "goldens": [
+      { "query": "support export redaction", "needle": "strip speaker names and phone numbers" },
+      { "query": "hold public API exports", "needle": "Hold the public API for exports" }
+    ]
+  },
+  {
+    "fixture": "meeting-hiring-sync.vtt",
+    "title": "Hiring sync",
+    "goldens": [
+      { "query": "staff engineer seat", "needle": "open one staff engineer seat" },
+      { "query": "pause mid-level req", "needle": "Pause the second mid-level req" }
+    ]
+  }
+]
