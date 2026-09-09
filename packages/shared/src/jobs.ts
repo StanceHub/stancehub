@@ -28,6 +28,18 @@ export function embedJobId(meetingId: string, generation: number) {
   return `embed:${meetingId}:${generation}`;
 }
 
+export const summarizeMeetingPayloadSchema = z.object({
+  organizationId: z.string().min(1),
+  meetingId: z.string().min(1),
+  generation: z.number().int().positive(),
+});
+
+export type SummarizeMeetingPayload = z.infer<typeof summarizeMeetingPayloadSchema>;
+
+export function summarizeJobId(meetingId: string, generation: number) {
+  return `summarize:${meetingId}:${generation}`;
+}
+
 const LIVE_EMBED_JOB_STATES = new Set([
   "active",
   "waiting",
@@ -41,9 +53,5 @@ export function isLiveEmbedJobState(state: string) {
   return LIVE_EMBED_JOB_STATES.has(state);
 }
 
-export const summarizeMeetingPayloadSchema = z.object({
-  organizationId: z.string().min(1),
-  meetingId: z.string().min(1),
-});
-
-export type SummarizeMeetingPayload = z.infer<typeof summarizeMeetingPayloadSchema>;
+/** Alias — summarize uses the same BullMQ live states. */
+export const isLiveJobState = isLiveEmbedJobState;

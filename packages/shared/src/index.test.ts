@@ -22,6 +22,7 @@ describe("jobs", () => {
     expect(QUEUE_NAME).toBe("stancehub");
     expect(JOB_NAMES.ping).toBe("ping");
     expect(JOB_NAMES.embedMeeting).toBe("embed_meeting");
+    expect(JOB_NAMES.summarizeMeeting).toBe("summarize_meeting");
   });
 
   it("parses ping payloads", () => {
@@ -52,7 +53,48 @@ describe("citations", () => {
       meetingId: "m1",
       chunkId: "c1",
       quote: "we decided on postgres",
+      startMs: 1000,
     });
     expect(citation.quote).toContain("postgres");
+    expect(citation.startMs).toBe(1000);
+  });
+});
+
+describe("meeting summary payload", () => {
+  it("parses JSON actions from model text", async () => {
+    const { parseMeetingSummaryPayload, summarizeJobId, citationsFromAnswer } = await import("./index");
+    const parsed = parseMeetingSummaryPayload(
+      'Here you go:\n{"summary":"Ship invites only.","actions":[{"title":"Write decision log","assigneeHint":"Jordan"}]}',
+    );
+    expect(parsed.summary).toContain("invites");
+    expect(parsed.actions[0]?.title).toContain("decision log");
+    expect(summarizeJobId("m1", 3)).toBe("summarize:m1:3");
+
+    const citations = citationsFromAnswer("Decision is clear [1].", [
+      {
+        chunkId: "c1",
+        meetingId: "m1",
+        meetingTitle: "Planning",
+        content: "Share links are out of this sprint.",
+        startMs: 0,
+        endMs: 1000,
+      },
+    ]);
+    expect(citations[0]?.chunkId).toBe("c1");
+  });
+
+  it("returns no citations when the answer omits [n] markers", async () => {
+    const { citationsFromAnswer } = await import("./index");
+    const citations = citationsFromAnswer("I cannot find any evidence in the vault.", [
+      {
+        chunkId: "c1",
+        meetingId: "m1",
+        meetingTitle: "Planning",
+        content: "Jordan will log the failed-payment rule.",
+        startMs: 0,
+        endMs: 1000,
+      },
+    ]);
+    expect(citations).toEqual([]);
   });
 });

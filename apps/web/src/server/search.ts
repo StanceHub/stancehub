@@ -1,4 +1,4 @@
-import { createEmbeddingClient } from "@stancehub/ai";
+import { createEmbeddingClient, resolveEmbeddingEndpoint } from "@stancehub/ai";
 import {
   reciprocalRankFusion,
   retrievalPoolSize,
@@ -7,7 +7,7 @@ import {
   searchChunksByVector,
   type SearchHit,
 } from "@stancehub/db";
-import { getServerEnv } from "@/env";
+import { getProcessEnvRecord } from "@/env";
 import { getDb } from "@/server/db";
 
 export const SEARCH_VECTOR_TIMEOUT_MS = 8000;
@@ -108,15 +108,12 @@ export async function searchVault(input: {
 
   const vectorStarted = performance.now();
   try {
-    const env = getServerEnv();
-    if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.EMBEDDING_MODEL) {
-      throw new Error("embedding endpoint is not configured");
-    }
+    const embeddingEndpoint = resolveEmbeddingEndpoint(getProcessEnvRecord());
     const client = createEmbeddingClient({
-      baseUrl: env.LLM_BASE_URL,
-      apiKey: env.LLM_API_KEY,
-      model: env.EMBEDDING_MODEL,
-      dimensions: env.EMBEDDING_DIMENSIONS ?? 768,
+      baseUrl: embeddingEndpoint.baseUrl,
+      apiKey: embeddingEndpoint.apiKey,
+      model: embeddingEndpoint.model,
+      dimensions: embeddingEndpoint.dimensions,
       timeoutMs: SEARCH_VECTOR_TIMEOUT_MS,
     });
     const [embedding] = await client.embed([query]);

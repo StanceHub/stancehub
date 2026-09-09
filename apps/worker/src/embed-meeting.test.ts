@@ -24,6 +24,29 @@ describe("readEmbeddingConfig", () => {
     expect(config.chunkMaxChars).toBe(480);
   });
 
+  it("prefers EMBEDDING_BASE_URL over LLM_BASE_URL", () => {
+    const config = readEmbeddingConfig({
+      EMBEDDING_BASE_URL: "http://embed.local/v1",
+      EMBEDDING_API_KEY: "embed-key",
+      LLM_BASE_URL: "http://chat.local/v1",
+      LLM_API_KEY: "chat-key",
+      EMBEDDING_MODEL: "embed",
+    });
+    expect(config.baseUrl).toBe("http://embed.local/v1");
+    expect(config.apiKey).toBe("embed-key");
+  });
+
+  it("rejects non-schema embedding dimensions", () => {
+    expect(() =>
+      readEmbeddingConfig({
+        EMBEDDING_BASE_URL: "http://127.0.0.1:8080/v1",
+        EMBEDDING_API_KEY: "key",
+        EMBEDDING_MODEL: "embed",
+        EMBEDDING_DIMENSIONS: "1024",
+      }),
+    ).toThrow(/EMBEDDING_DIMENSIONS/);
+  });
+
   it("reads CHUNK_MAX_CHARS when set", () => {
     const config = readEmbeddingConfig({
       LLM_BASE_URL: "http://127.0.0.1:8080/v1",

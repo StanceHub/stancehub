@@ -9,7 +9,7 @@ This is the working plan for Sprint 2 intelligence on top of the current BM25 + 
 **Recommended shape:**
 
 1. Retrieve with existing `searchVault` fused results (`limit` 6–12).
-2. Pass top chunks to a chat LLM (OpenAI-compatible `LLM_*` already in env) with a strict cite format (`[n]` → chunk id).
+2. Pass top chunks to a chat LLM (OpenAI-compatible `CHAT_*` / `LLM_MODEL`; see `docs/LLM-PROFILES.md`) with a strict cite format (`[n]` → chunk id).
 3. Refuse to invent facts not in the retrieved chunks; if retrieval is empty, say so.
 4. Persist nothing until we add conversation history (optional later).
 

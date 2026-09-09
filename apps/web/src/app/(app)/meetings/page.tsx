@@ -44,6 +44,10 @@ export default async function MeetingsPage() {
       </p>
       <p>
         <Link href="/search">Search vault</Link>
+        {" · "}
+        <Link href="/ask">Ask</Link>
+        {" · "}
+        <Link href="/tasks">Tasks</Link>
       </p>
       <UploadForm />
       <PingButton />
@@ -59,8 +63,13 @@ export default async function MeetingsPage() {
         <ul>
           {rows.map((meeting) => (
             <li key={meeting.id}>
-              {meeting.title} <small>({meeting.pipelineStatus})</small>
+              {meeting.title}{" "}
+              <small>
+                (embed: {meeting.pipelineStatus}
+                {meeting.summaryStatus ? ` · summary: ${meeting.summaryStatus}` : ""})
+              </small>
               {meeting.pipelineError ? <small> — {meeting.pipelineError}</small> : null}
+              {meeting.summaryError ? <small> — summary: {meeting.summaryError}</small> : null}
               {access.isAdmin &&
               (meeting.pipelineStatus === "failed" ||
                 meeting.pipelineStatus === "pending" ||

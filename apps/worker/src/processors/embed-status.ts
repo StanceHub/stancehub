@@ -15,7 +15,13 @@ export async function markEmbedFailed(meetingId: string, generation: number, mes
       pipelineError: message.slice(0, 500),
       updatedAt: new Date(),
     })
-    .where(and(eq(meetings.id, meetingId), eq(meetings.embedGeneration, generation)));
+    .where(
+      and(
+        eq(meetings.id, meetingId),
+        eq(meetings.embedGeneration, generation),
+        inArray(meetings.pipelineStatus, [...OPEN_PIPELINE]),
+      ),
+    );
 }
 
 export async function reconcileOpenEmbeds(queue: Queue) {

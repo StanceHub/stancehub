@@ -1,0 +1,25 @@
+{
+  "fixture": "meeting-greeting-kickoff.vtt",
+  "title": "Greeting kickoff eval",
+  "summarize": {
+    "summaryNeedles": ["welcome", "share links"],
+    "minActions": 2
+  },
+  "ask": [
+    {
+      "query": "What did we decide about share links?",
+      "answerNeedle": "share link",
+      "requireCitation": false
+    },
+    {
+      "query": "Who owns the greeting flow and onboarding copy?",
+      "answerNeedle": "Alex",
+      "requireCitation": false
+    },
+    {
+      "query": "What should Sam upload and verify?",
+      "answerNeedle": "vault",
+      "requireCitation": false
+    }
+  ]
+}

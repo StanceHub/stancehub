@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { and, eq } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Job } from "bullmq";
-import { createEmbeddingClient } from "@stancehub/ai";
+import { createEmbeddingClient, resolveEmbeddingEndpoint } from "@stancehub/ai";
 import {
   chunks,
   createDb,
@@ -69,12 +69,12 @@ describe.skipIf(!enabled)("embed vault integration", () => {
     });
     expect(keyword.length).toBeGreaterThan(0);
 
-    const envModel = process.env.EMBEDDING_MODEL ?? "";
+    const endpoint = resolveEmbeddingEndpoint(process.env as Record<string, string | undefined>);
     const client = createEmbeddingClient({
-      baseUrl: process.env.LLM_BASE_URL ?? "",
-      apiKey: process.env.LLM_API_KEY ?? "",
-      model: envModel,
-      dimensions: Number(process.env.EMBEDDING_DIMENSIONS ?? "768"),
+      baseUrl: endpoint.baseUrl,
+      apiKey: endpoint.apiKey,
+      model: endpoint.model,
+      dimensions: endpoint.dimensions,
     });
     const [embedding] = await client.embed(["roadmap decision"]);
     const vector = await searchChunksByVector(db, {

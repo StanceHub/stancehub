@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.000
+<v Priya>Good morning everyone. Thanks for joining the StanceHub kickoff.</v>
+
+00:00:04.200 --> 00:00:09.000
+<v Alex>Hey team. Happy to be here. I will own the greeting flow and onboarding copy.</v>
+
+00:00:09.200 --> 00:00:15.500
+<v Priya>Decision: we ship a short welcome transcript for dogfood today, not the full design system.</v>
+
+00:00:15.700 --> 00:00:22.000
+<v Sam>Agreed. Action for me: upload this sample to the vault and verify search finds kickoff and onboarding.</v>
+
+00:00:22.200 --> 00:00:28.000
+<v Alex>Action for Alex: draft a one-line welcome message users see after signup by Friday.</v>
+
+00:00:28.200 --> 00:00:34.000
+<v Priya>One more decision: share links stay out of this sprint. We only need paste and upload for transcripts.</v>
+
+00:00:34.200 --> 00:00:38.000
+<v Sam>Perfect. Thanks everyone. Talk tomorrow.</v>
