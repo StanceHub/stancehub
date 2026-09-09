@@ -8,7 +8,7 @@
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"lint pending\"",
-    "test": "echo \"no tests yet\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@stancehub/ai": "workspace:*",
@@ -28,6 +28,8 @@
     "@types/node": "^22.15.30",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite": "6.4.3",
+    "vitest": "^4.1.11"
   }
 }

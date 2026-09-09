@@ -34,13 +34,21 @@ export function createAuth() {
   });
 }
 
-const globalForAuth = globalThis as unknown as { __stancehubAuth?: ReturnType<typeof createAuth> };
+const globalForAuth = globalThis as unknown as {
+  __stancehubAuth?: ReturnType<typeof createAuth>;
+};
 
 export function getAuth() {
   if (!globalForAuth.__stancehubAuth) {
     globalForAuth.__stancehubAuth = createAuth();
   }
   return globalForAuth.__stancehubAuth;
+}
+
+// Dev/HMR: drop the cached instance when this module reloads so Better Auth
+// re-checks the current Drizzle schema (e.g. invitation.createdAt).
+if (process.env.NODE_ENV !== "production") {
+  globalForAuth.__stancehubAuth = undefined;
 }
 
 export type AuthSession = typeof getAuth extends () => infer A

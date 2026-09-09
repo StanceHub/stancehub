@@ -20,6 +20,8 @@ import { embedMeetingPayloadSchema } from "@stancehub/shared";
 import { readEmbeddingConfig } from "../embed-config";
 import { getWorkerDb } from "../db";
 import { markEmbedFailed } from "./embed-status";
+import { scheduleMeetingSummary } from "./summarize-status";
+import { getSummarizeQueue } from "../summarize-queue";
 
 const BATCH = 16;
 
@@ -142,6 +144,24 @@ export async function processEmbedMeeting(job: Job) {
         throw new Error("Embed attempt was superseded");
       }
     });
+
+    const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+    const summarizeQueue = getSummarizeQueue(redisUrl);
+    try {
+      await scheduleMeetingSummary({
+        organizationId: payload.organizationId,
+        meetingId: payload.meetingId,
+        queue: summarizeQueue,
+      });
+    } catch (summaryError) {
+      console.error("[worker] summarize schedule failed after embed ready", summaryError);
+    } finally {
+      try {
+        await summarizeQueue.close();
+      } catch (closeError) {
+        console.error("[worker] summarize queue close failed", closeError);
+      }
+    }
 
     return { ok: true as const, meetingId: payload.meetingId, chunks: pieces.length };
   } catch (error) {

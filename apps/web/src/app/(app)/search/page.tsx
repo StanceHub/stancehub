@@ -28,6 +28,10 @@ export default async function SearchPage({
     <main>
       <p>
         <Link href="/meetings">Meetings</Link>
+        {" · "}
+        <Link href="/ask">Ask</Link>
+        {" · "}
+        <Link href="/tasks">Tasks</Link>
       </p>
       <h1>Search</h1>
       <form>

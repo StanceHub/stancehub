@@ -1,11 +1,17 @@
 import { Queue, Worker } from "bullmq";
-import { embedMeetingPayloadSchema, JOB_NAMES, QUEUE_NAME } from "@stancehub/shared";
+import {
+  embedMeetingPayloadSchema,
+  JOB_NAMES,
+  QUEUE_NAME,
+  summarizeMeetingPayloadSchema,
+} from "@stancehub/shared";
 import { createRedisConnection } from "./connection";
 import { processPing } from "./processors/ping";
 import { closeWorkerDb } from "./db";
 import { processEmbedMeeting } from "./processors/embed-meeting";
 import { markEmbedFailed, reconcileOpenEmbeds } from "./processors/embed-status";
 import { processSummarizeMeeting } from "./processors/summarize-meeting";
+import { markSummaryFailed, reconcileOpenSummaries } from "./processors/summarize-status";
 
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 
@@ -15,6 +21,7 @@ async function main() {
   const queue = new Queue(QUEUE_NAME, { connection: reconcileConnection });
   try {
     await reconcileOpenEmbeds(queue);
+    await reconcileOpenSummaries(queue);
   } finally {
     await queue.close();
     reconcileConnection.disconnect();
@@ -42,18 +49,34 @@ async function main() {
   });
   worker.on("failed", (job, err) => {
     console.error(`[worker] job failed`, job?.id, job?.name, err);
-    if (!job || job.name !== JOB_NAMES.embedMeeting) return;
-    const parsed = embedMeetingPayloadSchema.safeParse(job.data);
-    if (!parsed.success) return;
-    void job
-      .getState()
-      .then((state) => {
-        if (state !== "failed") return;
-        return markEmbedFailed(parsed.data.meetingId, parsed.data.generation, err.message);
-      })
-      .catch((recordError) => {
-        console.error("[worker] could not record embed failure", recordError);
-      });
+    if (!job) return;
+    if (job.name === JOB_NAMES.embedMeeting) {
+      const parsed = embedMeetingPayloadSchema.safeParse(job.data);
+      if (!parsed.success) return;
+      void job
+        .getState()
+        .then((state) => {
+          if (state !== "failed") return;
+          return markEmbedFailed(parsed.data.meetingId, parsed.data.generation, err.message);
+        })
+        .catch((recordError) => {
+          console.error("[worker] could not record embed failure", recordError);
+        });
+      return;
+    }
+    if (job.name === JOB_NAMES.summarizeMeeting) {
+      const parsed = summarizeMeetingPayloadSchema.safeParse(job.data);
+      if (!parsed.success) return;
+      void job
+        .getState()
+        .then((state) => {
+          if (state !== "failed") return;
+          return markSummaryFailed(parsed.data.meetingId, parsed.data.generation, err.message);
+        })
+        .catch((recordError) => {
+          console.error("[worker] could not record summarize failure", recordError);
+        });
+    }
   });
 
   const shutdown = async () => {

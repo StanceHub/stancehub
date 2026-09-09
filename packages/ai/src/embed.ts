@@ -32,6 +32,9 @@ export function createEmbeddingClient(opts: {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
 }): EmbeddingClient {
+  if (!opts.model.trim()) {
+    throw new Error("EMBEDDING_MODEL is required");
+  }
   const fetchImpl = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_EMBED_TIMEOUT_MS;
   return {
@@ -64,29 +67,6 @@ export function createEmbeddingClient(opts: {
         throw new Error(`Embedding response count ${rows.length} != input ${texts.length}`);
       }
       return rows.map((row) => row.embedding);
-    },
-  };
-}
-
-export function createLlmClient(opts: {
-  baseUrl: string;
-  apiKey: string;
-  model?: string;
-  dimensions?: number;
-}) {
-  const embeddings = createEmbeddingClient({
-    baseUrl: opts.baseUrl,
-    apiKey: opts.apiKey,
-    model: opts.model ?? "",
-    dimensions: opts.dimensions,
-  });
-  return {
-    embed(texts: string[]) {
-      if (!opts.model) throw new Error("EMBEDDING_MODEL is required");
-      return embeddings.embed(texts);
-    },
-    async chat(_messages: { role: string; content: string }[]): Promise<string> {
-      throw new Error("Chat is not implemented in this sprint");
     },
   };
 }

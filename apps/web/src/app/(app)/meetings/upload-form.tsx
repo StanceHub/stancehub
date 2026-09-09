@@ -9,8 +9,9 @@ export function UploadForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formEl = event.currentTarget;
     setMessage("Saving…");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formEl);
     const res = await fetch("/api/meetings", { method: "POST", body: form });
     const data = (await res.json()) as { error?: string; meetingId?: string };
     if (!res.ok) {
@@ -18,7 +19,7 @@ export function UploadForm() {
       return;
     }
     setMessage(`Saved ${data.meetingId}. Embedding queued.`);
-    event.currentTarget.reset();
+    formEl.reset();
     router.refresh();
   }
 

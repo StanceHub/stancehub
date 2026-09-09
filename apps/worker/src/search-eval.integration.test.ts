@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Job } from "bullmq";
-import { createEmbeddingClient, DEFAULT_CHUNK_MAX_CHARS } from "@stancehub/ai";
+import { createEmbeddingClient, DEFAULT_CHUNK_MAX_CHARS, resolveEmbeddingEndpoint } from "@stancehub/ai";
 import {
   attachMeetingSearchStats,
   chunks,
@@ -233,12 +233,12 @@ describe.skipIf(!enabled)("search eval against multi-meeting fixtures", () => {
     expect(statsAfterDelete?.sumTokenCount).toBe(remaining.reduce((sum, row) => sum + row.tokenCount, 0));
     expect(remaining.every((row) => row.meetingId !== deleteId)).toBe(true);
 
-    const envModel = process.env.EMBEDDING_MODEL ?? "";
+    const endpoint = resolveEmbeddingEndpoint(process.env as Record<string, string | undefined>);
     const client = createEmbeddingClient({
-      baseUrl: process.env.LLM_BASE_URL ?? "",
-      apiKey: process.env.LLM_API_KEY ?? "",
-      model: envModel,
-      dimensions: Number(process.env.EMBEDDING_DIMENSIONS ?? "768"),
+      baseUrl: endpoint.baseUrl,
+      apiKey: endpoint.apiKey,
+      model: endpoint.model,
+      dimensions: endpoint.dimensions,
       timeoutMs: 8000,
     });
     const query = "share links out of sprint";

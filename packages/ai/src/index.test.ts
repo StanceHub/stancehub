@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { chunkCues, chunkText } from "./chunk";
-import { buildEmbeddingRequest, createEmbeddingClient, createLlmClient } from "./embed";
+import { buildChatRequest, ChatCompletionTruncatedError, createChatClient } from "./chat";
+import { buildEmbeddingRequest, createEmbeddingClient } from "./embed";
+import { resolveChatEndpoint, resolveEmbeddingEndpoint } from "./profiles";
 import { parseTranscript } from "./transcript";
 
 describe("chunkText", () => {
@@ -129,7 +131,159 @@ describe("embedding request", () => {
   });
 
   it("requires a model name before embedding", () => {
-    const llm = createLlmClient({ baseUrl: "http://127.0.0.1:8080/v1", apiKey: "x" });
-    expect(() => llm.embed(["hi"])).toThrow(/EMBEDDING_MODEL/);
+    expect(() =>
+      createEmbeddingClient({ baseUrl: "http://127.0.0.1:8080/v1", apiKey: "x", model: "" }),
+    ).toThrow(/EMBEDDING_MODEL/);
+  });
+});
+
+describe("resolveEmbeddingEndpoint", () => {
+  it("prefers EMBEDDING_* over LLM_* fallbacks", () => {
+    const endpoint = resolveEmbeddingEndpoint({
+      EMBEDDING_BASE_URL: "http://embed.local/v1",
+      EMBEDDING_API_KEY: "embed-key",
+      EMBEDDING_MODEL: "embed",
+      EMBEDDING_DIMENSIONS: "768",
+      LLM_BASE_URL: "http://chat.local/v1",
+      LLM_API_KEY: "chat-key",
+    });
+    expect(endpoint).toEqual({
+      baseUrl: "http://embed.local/v1",
+      apiKey: "embed-key",
+      model: "embed",
+      dimensions: 768,
+    });
+  });
+
+  it("falls back to LLM_BASE_URL and LLM_API_KEY", () => {
+    const endpoint = resolveEmbeddingEndpoint({
+      LLM_BASE_URL: "http://shared.local/v1",
+      LLM_API_KEY: "shared",
+      EMBEDDING_MODEL: "embed",
+    });
+    expect(endpoint.baseUrl).toBe("http://shared.local/v1");
+    expect(endpoint.apiKey).toBe("shared");
+  });
+});
+
+describe("resolveChatEndpoint", () => {
+  it("prefers CHAT_* and accepts OLLAMA_API_KEY", () => {
+    const endpoint = resolveChatEndpoint({
+      CHAT_BASE_URL: "http://127.0.0.1:11434/v1",
+      OLLAMA_API_KEY: "ollama-cloud",
+      LLM_MODEL: "gpt-oss:20b-cloud",
+      CHAT_TIMEOUT_MS: "120000",
+      LLM_BASE_URL: "http://embed.local/v1",
+      LLM_API_KEY: "embed-key",
+    });
+    expect(endpoint).toEqual({
+      baseUrl: "http://127.0.0.1:11434/v1",
+      apiKey: "ollama-cloud",
+      model: "gpt-oss:20b-cloud",
+      timeoutMs: 120_000,
+    });
+  });
+
+  it("defaults timeout to 120s and requires a chat model", () => {
+    const endpoint = resolveChatEndpoint({
+      LLM_BASE_URL: "http://127.0.0.1:11434/v1",
+      LLM_API_KEY: "ollama",
+      LLM_MODEL: "gpt-oss:20b-cloud",
+    });
+    expect(endpoint.timeoutMs).toBe(120_000);
+    expect(() =>
+      resolveChatEndpoint({
+        CHAT_BASE_URL: "http://127.0.0.1:11434/v1",
+        CHAT_API_KEY: "ollama",
+      }),
+    ).toThrow(/LLM_MODEL/);
+  });
+});
+
+describe("chat request", () => {
+  it("targets the compatible chat completions path", () => {
+    const request = buildChatRequest({
+      baseUrl: "http://127.0.0.1:8080/v1/",
+      model: "chat",
+      messages: [{ role: "user", content: "hello" }],
+      jsonObject: true,
+    });
+    expect(request.url).toBe("http://127.0.0.1:8080/v1/chat/completions");
+    expect(request.body.model).toBe("chat");
+    expect(request.body.response_format).toEqual({ type: "json_object" });
+  });
+
+  it("aborts a chat request that exceeds the timeout", async () => {
+    const client = createChatClient({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      apiKey: "x",
+      model: "chat",
+      timeoutMs: 20,
+      fetchImpl: (_url, init) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) {
+            reject(new Error("missing timeout signal"));
+            return;
+          }
+          signal.addEventListener("abort", () => reject(signal.reason));
+        }),
+    });
+    await expect(
+      client.chat({ messages: [{ role: "user", content: "hello" }] }),
+    ).rejects.toBeTruthy();
+  });
+
+  it("surfaces non-OK chat responses", async () => {
+    const client = createChatClient({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      apiKey: "x",
+      model: "chat",
+      fetchImpl: async () =>
+        new Response("nope", {
+          status: 500,
+          headers: { "content-type": "text/plain" },
+        }),
+    });
+    await expect(
+      client.chat({ messages: [{ role: "user", content: "hello" }] }),
+    ).rejects.toThrow(/Chat request failed \(500\)/);
+  });
+
+  it("throws truncated when finish_reason is length and content is empty", async () => {
+    const client = createChatClient({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      apiKey: "x",
+      model: "chat",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ finish_reason: "length", message: { role: "assistant", content: "" } }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    await expect(
+      client.chat({ messages: [{ role: "user", content: "hello" }] }),
+    ).rejects.toBeInstanceOf(ChatCompletionTruncatedError);
+  });
+
+  it("returns finishReason with content", async () => {
+    const client = createChatClient({
+      baseUrl: "http://127.0.0.1:8080/v1",
+      apiKey: "x",
+      model: "chat",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [{ finish_reason: "stop", message: { role: "assistant", content: "ok" } }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    });
+    await expect(client.chat({ messages: [{ role: "user", content: "hello" }] })).resolves.toEqual({
+      content: "ok",
+      finishReason: "stop",
+    });
   });
 });

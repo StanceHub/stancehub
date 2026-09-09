@@ -1,32 +1,20 @@
-import { DEFAULT_CHUNK_MAX_CHARS } from "@stancehub/ai";
+import { resolveEmbeddingEndpoint } from "@stancehub/ai";
+import { DEFAULT_EMBEDDING_DIMENSIONS } from "@stancehub/db";
+import { readChunkMaxChars } from "./chunk-config";
 
-const MIN_CHUNK_MAX_CHARS = 120;
-const MAX_CHUNK_MAX_CHARS = 4000;
-
-export function readChunkMaxChars(env: NodeJS.ProcessEnv = process.env) {
-  const raw = env.CHUNK_MAX_CHARS?.trim();
-  if (!raw) return DEFAULT_CHUNK_MAX_CHARS;
-  if (!/^\d+$/.test(raw)) {
-    throw new Error("CHUNK_MAX_CHARS must be a positive integer");
-  }
-  const value = Number(raw);
-  if (value < MIN_CHUNK_MAX_CHARS || value > MAX_CHUNK_MAX_CHARS) {
-    throw new Error(`CHUNK_MAX_CHARS must be between ${MIN_CHUNK_MAX_CHARS} and ${MAX_CHUNK_MAX_CHARS}`);
-  }
-  return value;
-}
+export { readChunkMaxChars } from "./chunk-config";
 
 export function readEmbeddingConfig(env: NodeJS.ProcessEnv = process.env) {
-  const baseUrl = env.LLM_BASE_URL?.trim();
-  const apiKey = env.LLM_API_KEY?.trim();
-  const model = env.EMBEDDING_MODEL?.trim();
-  const dimensions = Number(env.EMBEDDING_DIMENSIONS ?? "768");
-  const chunkMaxChars = readChunkMaxChars(env);
-  if (!baseUrl || !apiKey || !model) {
-    throw new Error("LLM_BASE_URL, LLM_API_KEY, and EMBEDDING_MODEL are required");
+  const endpoint = resolveEmbeddingEndpoint(env as Record<string, string | undefined>, {
+    dimensions: DEFAULT_EMBEDDING_DIMENSIONS,
+  });
+  if (endpoint.dimensions !== DEFAULT_EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `EMBEDDING_DIMENSIONS must be ${DEFAULT_EMBEDDING_DIMENSIONS} (schema vector width); got ${endpoint.dimensions}`,
+    );
   }
-  if (!Number.isFinite(dimensions) || dimensions < 1) {
-    throw new Error("EMBEDDING_DIMENSIONS must be a positive number");
-  }
-  return { baseUrl, apiKey, model, dimensions, chunkMaxChars };
+  return {
+    ...endpoint,
+    chunkMaxChars: readChunkMaxChars(env),
+  };
 }
