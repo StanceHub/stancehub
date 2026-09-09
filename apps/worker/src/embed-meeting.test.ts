@@ -21,6 +21,39 @@ describe("readEmbeddingConfig", () => {
     });
     expect(config.dimensions).toBe(768);
     expect(config.model).toBe("embed");
+    expect(config.chunkMaxChars).toBe(480);
+  });
+
+  it("reads CHUNK_MAX_CHARS when set", () => {
+    const config = readEmbeddingConfig({
+      LLM_BASE_URL: "http://127.0.0.1:8080/v1",
+      LLM_API_KEY: "key",
+      EMBEDDING_MODEL: "embed",
+      CHUNK_MAX_CHARS: "320",
+    });
+    expect(config.chunkMaxChars).toBe(320);
+  });
+
+  it("rejects out-of-range CHUNK_MAX_CHARS", () => {
+    expect(() =>
+      readEmbeddingConfig({
+        LLM_BASE_URL: "http://127.0.0.1:8080/v1",
+        LLM_API_KEY: "key",
+        EMBEDDING_MODEL: "embed",
+        CHUNK_MAX_CHARS: "10",
+      }),
+    ).toThrow(/CHUNK_MAX_CHARS/);
+  });
+
+  it("rejects non-decimal CHUNK_MAX_CHARS forms", () => {
+    expect(() =>
+      readEmbeddingConfig({
+        LLM_BASE_URL: "http://127.0.0.1:8080/v1",
+        LLM_API_KEY: "key",
+        EMBEDDING_MODEL: "embed",
+        CHUNK_MAX_CHARS: "480.0",
+      }),
+    ).toThrow(/CHUNK_MAX_CHARS/);
   });
 });
 

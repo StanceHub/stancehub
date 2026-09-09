@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo \"lint pending\"",
     "test": "vitest run",
-    "test:integration": "vitest run src/embed.integration.test.ts",
+    "test:integration": "vitest run src/embed.integration.test.ts src/search-eval.integration.test.ts",
     "build": "echo \"tsx runtime\""
   },
   "dependencies": {

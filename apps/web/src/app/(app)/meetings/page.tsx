@@ -4,7 +4,9 @@ import { desc, eq } from "drizzle-orm";
 import { meetings } from "@stancehub/db";
 import { getDb } from "@/server/db";
 import { requireOrgSession } from "@/server/org";
+import { DeleteMeetingButton } from "./delete-button";
 import { PingButton } from "./ping-button";
+import { ReembedAllButton } from "./reembed-all-button";
 import { RetryButton } from "./retry-button";
 import { SignOutButton } from "./sign-out-button";
 import { UploadForm } from "./upload-form";
@@ -45,6 +47,11 @@ export default async function MeetingsPage() {
       </p>
       <UploadForm />
       <PingButton />
+      {access.isAdmin ? (
+        <p style={{ marginTop: 12 }}>
+          <ReembedAllButton />
+        </p>
+      ) : null}
       <h2 style={{ marginTop: 24 }}>List</h2>
       {rows.length === 0 ? (
         <p>No meetings yet.</p>
@@ -61,6 +68,12 @@ export default async function MeetingsPage() {
                 <>
                   {" "}
                   <RetryButton meetingId={meeting.id} />
+                </>
+              ) : null}
+              {access.isAdmin ? (
+                <>
+                  {" "}
+                  <DeleteMeetingButton meetingId={meeting.id} />
                 </>
               ) : null}
             </li>

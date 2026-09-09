@@ -1,5 +1,15 @@
 import { sql } from "drizzle-orm";
-import { customType, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  customType,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { meetings } from "./meetings";
 import { organization } from "./auth";
 
@@ -62,6 +72,7 @@ export const chunks = pgTable(
     startMs: integer("start_ms"),
     endMs: integer("end_ms"),
     embedding: vector("embedding", { dimensions: DEFAULT_EMBEDDING_DIMENSIONS }).notNull(),
+    tokenCount: integer("token_count").notNull().default(0),
     contentTsv: customType<{ data: string }>({
       dataType() {
         return "tsvector";
@@ -74,4 +85,25 @@ export const chunks = pgTable(
     index("chunks_organization_id_idx").on(t.organizationId),
     index("chunks_meeting_id_idx").on(t.meetingId),
   ],
+);
+
+export const orgSearchStats = pgTable("org_search_stats", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  nDocs: bigint("n_docs", { mode: "number" }).notNull().default(0),
+  sumTokenCount: bigint("sum_token_count", { mode: "number" }).notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const orgTermDf = pgTable(
+  "org_term_df",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    lexeme: text("lexeme").notNull(),
+    nQi: integer("n_qi").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.lexeme] })],
 );

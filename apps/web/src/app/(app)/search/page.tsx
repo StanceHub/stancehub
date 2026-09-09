@@ -22,7 +22,7 @@ export default async function SearchPage({
   const query = q?.trim() ?? "";
   const result = query
     ? await searchVault({ organizationId: access.organizationId, query })
-    : { keyword: [], vector: [], vectorError: null };
+    : { fused: [], keyword: [], vector: [], keywordError: null, vectorError: null };
 
   return (
     <main>
@@ -34,11 +34,18 @@ export default async function SearchPage({
         <input name="q" defaultValue={query} placeholder="roadmap decision" />
         <button type="submit">Search</button>
       </form>
-      {result.vectorError ? <p>{result.vectorError}</p> : null}
-      <h2>Keyword</h2>
-      <HitList hits={result.keyword} />
-      <h2>Vector</h2>
-      <HitList hits={result.vector} />
+      {query ? (
+        <>
+          {result.keywordError ? <p>{result.keywordError}</p> : null}
+          {result.vectorError ? <p>{result.vectorError}</p> : null}
+          <h2>Results</h2>
+          <HitList hits={result.fused} />
+          <h2>Keyword</h2>
+          <HitList hits={result.keyword} />
+          <h2>Vector</h2>
+          <HitList hits={result.vector} />
+        </>
+      ) : null}
     </main>
   );
 }
@@ -58,7 +65,7 @@ function HitList({
     <ul>
       {hits.map((hit) => (
         <li key={hit.chunkId}>
-          <strong>{hit.meetingTitle}</strong> ({hit.score.toFixed(3)})
+          <strong>{hit.meetingTitle}</strong> ({hit.score.toFixed(4)})
           <div>{hit.content.slice(0, 280)}</div>
         </li>
       ))}

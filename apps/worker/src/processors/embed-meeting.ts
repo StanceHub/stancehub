@@ -8,9 +8,12 @@ import {
 } from "@stancehub/ai";
 import {
   assertEmbedding,
+  attachMeetingSearchStats,
   chunks,
   DEFAULT_EMBEDDING_DIMENSIONS,
   meetings,
+  orgSearchStatsLockSql,
+  removeMeetingChunksAndStats,
   transcripts,
 } from "@stancehub/db";
 import { embedMeetingPayloadSchema } from "@stancehub/shared";
@@ -48,7 +51,7 @@ export async function processEmbedMeeting(job: Job) {
       .limit(1);
 
     if (!transcript || transcript.organizationId !== payload.organizationId) {
-      throw new Error("Transcript not found for meeting");
+      return { ok: true as const, meetingId: payload.meetingId, stale: true };
     }
 
     const claimed = await db
@@ -69,13 +72,17 @@ export async function processEmbedMeeting(job: Job) {
       return { ok: true as const, meetingId: payload.meetingId, stale: true };
     }
     const parsed = parseTranscript(transcript.rawText, transcript.format);
-    const pieces = parsed.cues.length > 0 ? chunkCues(parsed.cues) : chunkText(parsed.text);
+    const pieces =
+      parsed.cues.length > 0
+        ? chunkCues(parsed.cues, config.chunkMaxChars)
+        : chunkText(parsed.text, config.chunkMaxChars);
     if (pieces.length === 0) throw new Error("Transcript produced no chunks");
 
     const client = createEmbeddingClient({
       baseUrl: config.baseUrl,
       apiKey: config.apiKey,
       model: config.model,
+      dimensions: config.dimensions,
     });
 
     const vectors: number[][] = [];
@@ -92,6 +99,7 @@ export async function processEmbedMeeting(job: Job) {
 
     await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${payload.meetingId}))`);
+      await tx.execute(orgSearchStatsLockSql(payload.organizationId));
       const [current] = await tx
         .select({ version: transcripts.version })
         .from(transcripts)
@@ -101,7 +109,10 @@ export async function processEmbedMeeting(job: Job) {
         throw new Error("Transcript changed while embedding");
       }
 
-      await tx.delete(chunks).where(eq(chunks.meetingId, payload.meetingId));
+      await removeMeetingChunksAndStats(tx, {
+        organizationId: payload.organizationId,
+        meetingId: payload.meetingId,
+      });
       await tx.insert(chunks).values(
         pieces.map((piece, index) => ({
           id: crypto.randomUUID(),
@@ -115,8 +126,13 @@ export async function processEmbedMeeting(job: Job) {
           startMs: piece.startMs,
           endMs: piece.endMs,
           embedding: vectors[index]!,
+          tokenCount: 0,
         })),
       );
+      await attachMeetingSearchStats(tx, {
+        organizationId: payload.organizationId,
+        meetingId: payload.meetingId,
+      });
       const ready = await tx
         .update(meetings)
         .set({ pipelineStatus: "ready", pipelineError: null, updatedAt: new Date() })
