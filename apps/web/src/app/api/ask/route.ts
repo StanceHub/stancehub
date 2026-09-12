@@ -6,14 +6,25 @@ import {
 } from "@stancehub/ai";
 import { getProcessEnvRecord } from "@/env";
 import { askWithChat, citationsFromAnswer, readAskMaxTokens } from "@/server/ask";
+import {
+  askRateLimitEnabled,
+  consumeAskRateLimit,
+  readAskRateLimitConfig,
+} from "@/server/ask-rate-limit";
 import { AUDIT_ACTIONS, AUDIT_OUTCOMES, recordAskAuditEvent } from "@/server/audit";
 import { buildAskMessages } from "@stancehub/shared";
 import { requireActiveOrg } from "@/server/org";
 import { searchVault } from "@/server/search";
 import { filterHitsForOrganization } from "@/server/tenancy-search";
 
+export const runtime = "nodejs";
+
 function logAskMetrics(fields: Record<string, string | number | boolean | null>) {
   console.info(JSON.stringify({ event: "vault.ask", ...fields }));
+}
+
+function logAskThrottled(fields: Record<string, string | number | boolean | null>) {
+  console.info(JSON.stringify({ event: "vault.ask.throttled", ...fields }));
 }
 
 export async function POST(request: Request) {
@@ -48,6 +59,44 @@ export async function POST(request: Request) {
       },
       { status: 503 },
     );
+  }
+
+  let rateLimitConfig;
+  try {
+    rateLimitConfig = readAskRateLimitConfig(getProcessEnvRecord());
+  } catch {
+    return NextResponse.json({ error: "rate limit unavailable" }, { status: 503 });
+  }
+
+  if (askRateLimitEnabled(rateLimitConfig)) {
+    let decision;
+    try {
+      decision = await consumeAskRateLimit({
+        userId,
+        organizationId,
+        config: rateLimitConfig,
+      });
+    } catch (error) {
+      console.error("[ask.rate_limit]", error instanceof Error ? error.message : error);
+      return NextResponse.json({ error: "rate limit unavailable" }, { status: 503 });
+    }
+    if (!decision.allowed) {
+      logAskThrottled({
+        organizationId,
+        scope: decision.scope,
+        limit: decision.limit,
+        count: decision.count,
+        retryAfterSec: decision.retryAfterSec,
+        windowSec: decision.windowSec,
+      });
+      return NextResponse.json(
+        { error: "rate limit exceeded" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(decision.retryAfterSec) },
+        },
+      );
+    }
   }
 
   let hitCount = 0;
