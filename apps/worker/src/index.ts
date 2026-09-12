@@ -1,31 +1,52 @@
 import { Queue, Worker } from "bullmq";
 import {
+  drainOutbox,
+  reconcileOpenJobsWithOutbox,
+} from "@stancehub/db";
+import {
   embedMeetingPayloadSchema,
   JOB_NAMES,
+  OUTBOX_DRAIN_INTERVAL_MS,
   QUEUE_NAME,
   summarizeMeetingPayloadSchema,
 } from "@stancehub/shared";
 import { createRedisConnection } from "./connection";
 import { processPing } from "./processors/ping";
-import { closeWorkerDb } from "./db";
+import { closeWorkerDb, getWorkerDb } from "./db";
 import { processEmbedMeeting } from "./processors/embed-meeting";
-import { markEmbedFailed, reconcileOpenEmbeds } from "./processors/embed-status";
+import { markEmbedFailed } from "./processors/embed-status";
 import { processSummarizeMeeting } from "./processors/summarize-meeting";
-import { markSummaryFailed, reconcileOpenSummaries } from "./processors/summarize-status";
+import { markSummaryFailed } from "./processors/summarize-status";
+import { createWorkerOutboxQueue } from "./outbox-queue";
 
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+
+async function drainAndReconcile(queue: Queue) {
+  const db = getWorkerDb();
+  const outboxQueue = createWorkerOutboxQueue(queue);
+  await drainOutbox(db, outboxQueue);
+  await reconcileOpenJobsWithOutbox(db, outboxQueue);
+}
 
 async function main() {
   const connection = createRedisConnection(redisUrl);
   const reconcileConnection = createRedisConnection(redisUrl);
   const queue = new Queue(QUEUE_NAME, { connection: reconcileConnection });
-  try {
-    await reconcileOpenEmbeds(queue);
-    await reconcileOpenSummaries(queue);
-  } finally {
-    await queue.close();
-    reconcileConnection.disconnect();
-  }
+  await drainAndReconcile(queue);
+
+  let drainInFlight: Promise<void> | null = null;
+  const outboxTimer = setInterval(() => {
+    if (drainInFlight) return;
+    drainInFlight = drainOutbox(getWorkerDb(), createWorkerOutboxQueue(queue))
+      .then(() => undefined)
+      .catch((err) => {
+        console.error("[worker] outbox drain failed", err);
+      })
+      .finally(() => {
+        drainInFlight = null;
+      });
+  }, OUTBOX_DRAIN_INTERVAL_MS);
+  outboxTimer.unref?.();
 
   const worker = new Worker(
     QUEUE_NAME,
@@ -81,7 +102,10 @@ async function main() {
 
   const shutdown = async () => {
     console.log("[worker] shutting down…");
+    clearInterval(outboxTimer);
     await worker.close();
+    await queue.close();
+    reconcileConnection.disconnect();
     await closeWorkerDb();
     connection.disconnect();
     process.exit(0);

@@ -6,9 +6,9 @@ Accepted limits in the current code. These are not bugs to paper over; generatio
 
 ### Crash between the status save and the queue write
 
-A retry first commits the new `embed_generation` and sets the meeting to `pending`, then adds the Redis job.
+**Mitigated by transactional outbox (#43 / migration `0007_job_outbox`).** Embed create/retry/reembed and summarize schedule insert a `job_outbox` row in the **same Postgres transaction** as the status/generation bump. Worker drains unpublished rows every 15s (and on boot before reconcile). Redis being down after commit no longer marks the meeting failed immediately — the meeting stays open until publish succeeds or outbox exhausts (20 attempts or 1h).
 
-If the web process dies in that gap, Postgres says `pending` and Redis has no job. The meeting stays there until the worker starts and marks that generation `failed`, or until someone retries. If Redis is down but the process stays up, the retry path writes `failed` immediately.
+Residual: if an outbox row is already `published` but BullMQ lost the job while status is still open, reconcile performs **one** durable re-add (`reconcile_readd_at`), then fails the generation. Pre-outbox stuck `pending` rows (no outbox) still fail on reconcile until manual retry.
 
 ### Worker dies while the queue still thinks the job is running
 
@@ -57,7 +57,7 @@ A new summarize generation deletes and recreates meeting tasks from the fresh ac
 
 ### Summarize enqueue crash gap
 
-After embed becomes `ready`, the worker bumps `summary_generation` then enqueues Redis. If the process dies between those steps, reconcile on worker boot marks open summarize generations with no live job as `failed` (same class of gap as embed enqueue).
+**Mitigated by the same outbox (#43).** `scheduleMeetingSummary` bumps `summary_generation` and inserts outbox in one transaction; publish is best-effort after commit. Worker drain recovers unpublished summarize intents.
 
 ### No admin retry-summarize UI
 
@@ -120,10 +120,10 @@ Search/ask emit structured console metrics (query length, counts, latency). Prom
 | Native Ollama Cloud adapter | #40 |
 | Audit trail for ask / summarize / tasks | #41 (overlaps #10 / #14) |
 | Enterprise SSO / SCIM | #42 |
-| Durable enqueue (outbox) for embed/summarize | #43 |
+| Durable enqueue (outbox) for embed/summarize | #43 (outbox shipped; stall window remains) |
 | Ask: show sources when model omits [n] | #44 |
 | Ask over org tasks (status/assignee) | #45 |
 | Backup / restore / DR runbook | #46 |
 | CI Better Auth ↔ Drizzle schema drift | #47 |
 | Stronger per-tenant isolation beyond org-row filters | #49 |
-| Documented embed/summarize enqueue crash gaps | this file (until #43) |
+| Documented embed/summarize enqueue crash gaps | mitigated by #43 outbox |

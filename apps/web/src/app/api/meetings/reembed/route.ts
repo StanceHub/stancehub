@@ -2,11 +2,7 @@ import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { meetings } from "@stancehub/db";
 import { getDb } from "@/server/db";
-import {
-  enqueuePreparedMeetingEmbed,
-  markEmbedEnqueueFailed,
-  prepareMeetingEmbedRetry,
-} from "@/server/embed-retry";
+import { prepareMeetingEmbedRetry, publishPreparedMeetingEmbed } from "@/server/embed-retry";
 import { requireOrgSession } from "@/server/org";
 
 /** Org-scoped bulk re-embed. Sequential enqueue to avoid stampeding the worker/LLM. */
@@ -28,12 +24,12 @@ export async function POST() {
     .orderBy(asc(meetings.createdAt));
 
   let queued = 0;
+  let outboxPending = 0;
   let skippedRunning = 0;
   let skippedMissing = 0;
   const errors: Array<{ meetingId: string; error: string }> = [];
 
   for (const row of rows) {
-    let committedGeneration: number | null = null;
     try {
       const prepared = await prepareMeetingEmbedRetry({
         organizationId: access.organizationId,
@@ -47,23 +43,15 @@ export async function POST() {
         skippedRunning += 1;
         continue;
       }
-      committedGeneration = prepared.generation;
-      await enqueuePreparedMeetingEmbed({
+      const published = await publishPreparedMeetingEmbed({
         organizationId: access.organizationId,
         meetingId: row.id,
         generation: prepared.generation,
       });
-      queued += 1;
+      if (published.enqueue === "redis") queued += 1;
+      else outboxPending += 1;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "enqueue failed";
-      if (committedGeneration != null) {
-        await markEmbedEnqueueFailed({
-          organizationId: access.organizationId,
-          meetingId: row.id,
-          generation: committedGeneration,
-          message,
-        });
-      }
+      const message = error instanceof Error ? error.message : "retry failed";
       errors.push({ meetingId: row.id, error: message });
     }
   }
@@ -73,6 +61,7 @@ export async function POST() {
     organizationId: access.organizationId,
     considered: rows.length,
     queued,
+    outboxPending,
     skippedRunning,
     skippedMissing,
     errors,

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
-import { meetings, transcripts } from "@stancehub/db";
+import { insertJobOutbox, meetings, transcripts, publishOutboxForMeetingGeneration } from "@stancehub/db";
 import { parseTranscript } from "@stancehub/ai";
+import { embedJobId, JOB_NAMES } from "@stancehub/shared";
 import { getDb } from "@/server/db";
-import { enqueueEmbedMeeting } from "@/server/queue";
+import { getQueue } from "@/server/queue";
+import { createWebOutboxQueue } from "@/server/outbox-queue";
 import { requireOrgSession } from "@/server/org";
 
 const MAX_BYTES = 1_500_000;
@@ -53,39 +54,48 @@ export async function POST(request: Request) {
   }
   const meetingId = crypto.randomUUID();
   const transcriptId = crypto.randomUUID();
+  const generation = 1;
+  const organizationId = access.organizationId;
   const db = getDb();
 
   await db.transaction(async (tx) => {
     await tx.insert(meetings).values({
       id: meetingId,
-      organizationId: access.organizationId!,
+      organizationId,
       title,
       source: "upload",
       pipelineStatus: "pending",
+      embedGeneration: generation,
     });
     await tx.insert(transcripts).values({
       id: transcriptId,
-      organizationId: access.organizationId!,
+      organizationId,
       meetingId,
       rawText: raw,
       format: parsed.format,
       version: 1,
     });
+    await insertJobOutbox(tx, {
+      jobName: JOB_NAMES.embedMeeting,
+      organizationId,
+      meetingId,
+      generation,
+      payload: { organizationId, meetingId, generation },
+    });
   });
 
-  try {
-    const queued = await enqueueEmbedMeeting({
-      organizationId: access.organizationId,
+  const published = await publishOutboxForMeetingGeneration(db, createWebOutboxQueue(getQueue()), {
+    jobName: JOB_NAMES.embedMeeting,
+    meetingId,
+    generation,
+  });
+
+    return NextResponse.json({
+      ok: true,
       meetingId,
-      generation: 1,
+      enqueue: published.enqueue,
+      outboxId: "outboxId" in published ? published.outboxId : undefined,
+      jobId:
+        published.enqueue === "redis" ? embedJobId(meetingId, generation) : undefined,
     });
-    return NextResponse.json({ ok: true, meetingId, jobId: queued.job.id });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "enqueue failed";
-    await db
-      .update(meetings)
-      .set({ pipelineStatus: "failed", pipelineError: message, updatedAt: new Date() })
-      .where(and(eq(meetings.id, meetingId), eq(meetings.embedGeneration, 1)));
-    return NextResponse.json({ error: message, meetingId }, { status: 500 });
-  }
 }

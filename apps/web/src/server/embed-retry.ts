@@ -1,19 +1,23 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { meetings } from "@stancehub/db";
-import { isLiveEmbedJobState } from "@stancehub/shared";
+import { and, eq, sql } from "drizzle-orm";
+import {
+  insertJobOutbox,
+  meetings,
+  publishOutboxForMeetingGeneration,
+  supersedePendingOutbox,
+} from "@stancehub/db";
+import { JOB_NAMES, isLiveEmbedJobState } from "@stancehub/shared";
 import { getDb } from "@/server/db";
-import { enqueueEmbedMeeting, getEmbedJob } from "@/server/queue";
-
-const OPEN_PIPELINE = ["pending", "embedding"] as const;
+import { getEmbedJob, getQueue } from "@/server/queue";
+import { createWebOutboxQueue } from "@/server/outbox-queue";
 
 export type PrepareEmbedRetryResult =
   | { status: "not_found" }
   | { status: "already_running"; jobId: string }
-  | { status: "queued"; generation: number };
+  | { status: "queued"; generation: number; outboxId: string };
 
 /**
- * Bump embed generation and mark pending under the retry advisory lock.
- * Caller must enqueue after a successful "queued" result, and fail the generation if enqueue throws.
+ * Bump embed generation, mark pending, and insert outbox under the retry advisory lock.
+ * Caller must best-effort publish after commit (do not mark meeting failed if Redis is down).
  */
 export async function prepareMeetingEmbedRetry(input: {
   organizationId: string;
@@ -47,41 +51,39 @@ export async function prepareMeetingEmbedRetry(input: {
       .returning({ generation: meetings.embedGeneration });
     if (!bumped) return { status: "not_found" as const };
 
-    return { status: "queued" as const, generation: bumped.generation };
+    await supersedePendingOutbox(tx, {
+      jobName: JOB_NAMES.embedMeeting,
+      meetingId: input.meetingId,
+      exceptGeneration: bumped.generation,
+    });
+
+    const payload = {
+      organizationId: input.organizationId,
+      meetingId: input.meetingId,
+      generation: bumped.generation,
+    };
+    const outboxId = await insertJobOutbox(tx, {
+      jobName: JOB_NAMES.embedMeeting,
+      organizationId: input.organizationId,
+      meetingId: input.meetingId,
+      generation: bumped.generation,
+      payload,
+    });
+
+    return { status: "queued" as const, generation: bumped.generation, outboxId };
   });
 }
 
-export async function markEmbedEnqueueFailed(input: {
+/** Best-effort Redis publish after outbox commit. Never marks meeting failed. */
+export async function publishPreparedMeetingEmbed(input: {
   organizationId: string;
   meetingId: string;
   generation: number;
-  message: string;
 }) {
   const db = getDb();
-  await db
-    .update(meetings)
-    .set({
-      pipelineStatus: "failed",
-      pipelineError: input.message.slice(0, 500),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(meetings.id, input.meetingId),
-        eq(meetings.organizationId, input.organizationId),
-        eq(meetings.embedGeneration, input.generation),
-        inArray(meetings.pipelineStatus, [...OPEN_PIPELINE]),
-      ),
-    );
-}
-
-export async function enqueuePreparedMeetingEmbed(input: {
-  organizationId: string;
-  meetingId: string;
-  generation: number;
-}) {
-  return enqueueEmbedMeeting({
-    organizationId: input.organizationId,
+  const queue = createWebOutboxQueue(getQueue());
+  return publishOutboxForMeetingGeneration(db, queue, {
+    jobName: JOB_NAMES.embedMeeting,
     meetingId: input.meetingId,
     generation: input.generation,
   });
