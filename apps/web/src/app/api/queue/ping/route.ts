@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/server/rbac";
+import { requireAdminOrg } from "@/server/org";
 import { enqueuePing } from "@/server/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Enqueue a BullMQ ping job (auth required). */
+/** Admin/operator: enqueue a BullMQ ping job. */
 export async function POST() {
-  const session = await requireSession();
-  if (!session) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const gate = await requireAdminOrg();
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
   }
 
-  const job = await enqueuePing(`ping from ${session.user.email}`);
+  const job = await enqueuePing(`ping from ${gate.access.session.user.email}`);
   return NextResponse.json({ ok: true, jobId: job.id });
 }

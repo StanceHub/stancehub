@@ -53,6 +53,7 @@ export function citationsFromAnswer(answer: string, hits: AskHit[]): Citation[] 
     const quote = hit.content.trim().slice(0, 280);
     citations.push(
       citationSchema.parse({
+        n,
         meetingId: hit.meetingId,
         chunkId: hit.chunkId,
         meetingTitle: hit.meetingTitle,

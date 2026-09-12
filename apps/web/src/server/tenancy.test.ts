@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { meetingPath, parseMeetingTimeParam } from "@stancehub/shared";
 import { meetingVisibleInOrg, NOT_FOUND_BODY } from "./tenancy";
 import { filterHitsForOrganization } from "./tenancy-search";
 
@@ -11,6 +12,14 @@ describe("tenancy contracts", () => {
     expect(meetingVisibleInOrg({ organizationId: "org-a" }, "org-a")).toBe(true);
     expect(meetingVisibleInOrg({ organizationId: "org-b" }, "org-a")).toBe(false);
     expect(meetingVisibleInOrg(null, "org-a")).toBe(false);
+  });
+});
+
+describe("meeting deep-link contract", () => {
+  it("keeps meeting hrefs org-agnostic and encodes tMs safely", () => {
+    expect(meetingPath("meet-1", { tMs: 900 })).toBe("/meetings/meet-1?t=900");
+    expect(parseMeetingTimeParam("900")).toBe(900);
+    expect(parseMeetingTimeParam("abc")).toBeNull();
   });
 });
 

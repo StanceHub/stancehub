@@ -19,7 +19,7 @@ export function PingButton() {
   return (
     <div>
       <button type="button" onClick={ping}>
-        Enqueue BullMQ ping
+        Enqueue queue ping
       </button>
       {msg ? <p>{msg}</p> : null}
     </div>
