@@ -1,10 +1,15 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Queue } from "bullmq";
 import {
+  AUDIT_ACTIONS,
+  AUDIT_ACTOR_TYPES,
+  AUDIT_OUTCOMES,
+  insertAuditEvent,
   insertJobOutbox,
   meetings,
   publishOutboxForMeetingGeneration,
   supersedePendingOutbox,
+  truncateAuditReason,
 } from "@stancehub/db";
 import { JOB_NAMES } from "@stancehub/shared";
 import { getWorkerDb } from "../db";
@@ -19,21 +24,54 @@ export async function markSummaryFailed(
   message: string,
 ) {
   const db = getWorkerDb();
-  await db
-    .update(meetings)
-    .set({
-      summaryStatus: "failed",
-      summaryError: message.slice(0, 500),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(meetings.id, meetingId),
-        eq(meetings.organizationId, organizationId),
-        eq(meetings.summaryGeneration, generation),
-        inArray(meetings.summaryStatus, [...OPEN_SUMMARY]),
-      ),
-    );
+  await db.transaction(async (tx) => {
+    const [meeting] = await tx
+      .select({ organizationId: meetings.organizationId })
+      .from(meetings)
+      .where(eq(meetings.id, meetingId))
+      .limit(1);
+    if (!meeting) return;
+
+    const orgId = meeting.organizationId;
+    const orgMismatch = orgId !== organizationId;
+    const updated = await tx
+      .update(meetings)
+      .set({
+        summaryStatus: "failed",
+        summaryError: message.slice(0, 500),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(meetings.id, meetingId),
+          eq(meetings.organizationId, orgId),
+          eq(meetings.summaryGeneration, generation),
+          inArray(meetings.summaryStatus, [...OPEN_SUMMARY]),
+        ),
+      )
+      .returning({ id: meetings.id });
+
+    // Org-mismatch attempts must still audit even if the row was already terminal.
+    if (updated.length === 0 && !orgMismatch) return;
+
+    await insertAuditEvent(tx, {
+      organizationId: orgId,
+      actorType: AUDIT_ACTOR_TYPES.worker,
+      action: AUDIT_ACTIONS.summarizeFailed,
+      resourceType: "meeting",
+      resourceId: meetingId,
+      outcome: AUDIT_OUTCOMES.failure,
+      metadata: {
+        meetingId,
+        summaryGeneration: generation,
+        requestedOrganizationId: organizationId,
+        orgMismatch,
+        statusUpdated: updated.length > 0,
+        errorClass: orgMismatch ? "org_mismatch" : "summarize_failed",
+        reason: truncateAuditReason(message),
+      },
+    });
+  });
 }
 
 /**

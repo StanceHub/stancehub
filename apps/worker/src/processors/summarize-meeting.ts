@@ -7,7 +7,16 @@ import {
   type ChatClient,
   type ChatMessage,
 } from "@stancehub/ai";
-import { meetingArtifacts, meetings, tasks, transcripts } from "@stancehub/db";
+import {
+  AUDIT_ACTIONS,
+  AUDIT_ACTOR_TYPES,
+  AUDIT_OUTCOMES,
+  insertAuditEvent,
+  meetingArtifacts,
+  meetings,
+  tasks,
+  transcripts,
+} from "@stancehub/db";
 import {
   parseMeetingSummaryPayload,
   summarizeMeetingPayloadSchema,
@@ -271,6 +280,14 @@ export async function processSummarizeMeeting(job: Job) {
         },
       ]);
 
+      const existingTaskIds = await tx
+        .select({ id: tasks.id })
+        .from(tasks)
+        .where(
+          and(eq(tasks.meetingId, payload.meetingId), eq(tasks.organizationId, payload.organizationId)),
+        );
+      const deletedCount = existingTaskIds.length;
+
       await tx
         .delete(tasks)
         .where(
@@ -304,6 +321,34 @@ export async function processSummarizeMeeting(job: Job) {
       if (ready.length === 0) {
         throw new Error("Summarize attempt was superseded");
       }
+
+      await insertAuditEvent(tx, {
+        organizationId: payload.organizationId,
+        actorType: AUDIT_ACTOR_TYPES.worker,
+        action: AUDIT_ACTIONS.summarizeSucceeded,
+        resourceType: "meeting",
+        resourceId: payload.meetingId,
+        outcome: AUDIT_OUTCOMES.success,
+        metadata: {
+          meetingId: payload.meetingId,
+          summaryGeneration: payload.generation,
+          actionCount: actions.length,
+        },
+      });
+      await insertAuditEvent(tx, {
+        organizationId: payload.organizationId,
+        actorType: AUDIT_ACTOR_TYPES.worker,
+        action: AUDIT_ACTIONS.taskBulkReplaced,
+        resourceType: "meeting",
+        resourceId: payload.meetingId,
+        outcome: AUDIT_OUTCOMES.success,
+        metadata: {
+          meetingId: payload.meetingId,
+          summaryGeneration: payload.generation,
+          deletedCount,
+          createdCount: actions.length,
+        },
+      });
     });
 
     return {
