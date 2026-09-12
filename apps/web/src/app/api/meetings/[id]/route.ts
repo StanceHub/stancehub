@@ -7,8 +7,9 @@ import {
 } from "@stancehub/db";
 import { isLiveEmbedJobState } from "@stancehub/shared";
 import { getDb } from "@/server/db";
-import { requireOrgSession } from "@/server/org";
+import { requireAdminOrg } from "@/server/org";
 import { getEmbedJob } from "@/server/queue";
+import { getMeetingForOrg, NOT_FOUND_BODY } from "@/server/tenancy";
 
 const OPEN_PIPELINE = ["pending", "embedding"] as const;
 
@@ -20,39 +21,28 @@ export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const access = await requireOrgSession();
-  if (!access) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!access.organizationId) {
-    return NextResponse.json({ error: "no active organization" }, { status: 400 });
-  }
-  if (!access.isAdmin) {
-    return NextResponse.json({ error: "admin required" }, { status: 403 });
-  }
+  const gate = await requireAdminOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
   const { id } = await context.params;
-  const organizationId = access.organizationId;
+  const organizationId = gate.access.organizationId;
   const db = getDb();
 
   try {
     const result = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`embed-retry:${id}`}))`);
 
-      const [current] = await tx
-        .select({
-          id: meetings.id,
-          generation: meetings.embedGeneration,
-          pipelineStatus: meetings.pipelineStatus,
-        })
-        .from(meetings)
-        .where(and(eq(meetings.id, id), eq(meetings.organizationId, organizationId)))
-        .limit(1)
-        .for("update");
+      const current = await getMeetingForOrg(tx, {
+        organizationId,
+        meetingId: id,
+        forUpdate: true,
+      });
       if (!current) return { status: "not_found" as const };
 
       if (isOpenPipeline(current.pipelineStatus)) {
         let running;
         try {
-          running = await getEmbedJob(id, current.generation);
+          running = await getEmbedJob(id, current.embedGeneration);
         } catch {
           return { status: "busy" as const, reason: "could not verify embed job state" };
         }
@@ -67,14 +57,7 @@ export async function DELETE(
 
       await tx.execute(orgSearchStatsLockSql(organizationId));
 
-      const [stillThere] = await tx
-        .select({
-          id: meetings.id,
-          pipelineStatus: meetings.pipelineStatus,
-        })
-        .from(meetings)
-        .where(and(eq(meetings.id, id), eq(meetings.organizationId, organizationId)))
-        .limit(1);
+      const stillThere = await getMeetingForOrg(tx, { organizationId, meetingId: id });
       if (!stillThere) return { status: "not_found" as const };
       if (isOpenPipeline(stillThere.pipelineStatus)) {
         return {
@@ -95,7 +78,7 @@ export async function DELETE(
     });
 
     if (result.status === "not_found") {
-      return NextResponse.json({ error: "not found" }, { status: 404 });
+      return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
     }
     if (result.status === "busy") {
       return NextResponse.json({ error: result.reason }, { status: 409 });

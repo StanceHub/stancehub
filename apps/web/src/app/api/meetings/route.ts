@@ -5,16 +5,14 @@ import { embedJobId, JOB_NAMES } from "@stancehub/shared";
 import { getDb } from "@/server/db";
 import { getQueue } from "@/server/queue";
 import { createWebOutboxQueue } from "@/server/outbox-queue";
-import { requireOrgSession } from "@/server/org";
+import { requireActiveOrg } from "@/server/org";
 
 const MAX_BYTES = 1_500_000;
 
 export async function POST(request: Request) {
-  const access = await requireOrgSession();
-  if (!access) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!access.organizationId) {
-    return NextResponse.json({ error: "no active organization" }, { status: 400 });
-  }
+  const gate = await requireActiveOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  const { organizationId } = gate.access;
 
   let title = "Untitled meeting";
   let raw = "";
@@ -55,7 +53,6 @@ export async function POST(request: Request) {
   const meetingId = crypto.randomUUID();
   const transcriptId = crypto.randomUUID();
   const generation = 1;
-  const organizationId = access.organizationId;
   const db = getDb();
 
   await db.transaction(async (tx) => {
@@ -90,12 +87,11 @@ export async function POST(request: Request) {
     generation,
   });
 
-    return NextResponse.json({
-      ok: true,
-      meetingId,
-      enqueue: published.enqueue,
-      outboxId: "outboxId" in published ? published.outboxId : undefined,
-      jobId:
-        published.enqueue === "redis" ? embedJobId(meetingId, generation) : undefined,
-    });
+  return NextResponse.json({
+    ok: true,
+    meetingId,
+    enqueue: published.enqueue,
+    outboxId: "outboxId" in published ? published.outboxId : undefined,
+    jobId: published.enqueue === "redis" ? embedJobId(meetingId, generation) : undefined,
+  });
 }

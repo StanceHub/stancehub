@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { tasks } from "@stancehub/db";
 import { getDb } from "@/server/db";
-import { requireOrgSession } from "@/server/org";
+import { requireActiveOrg } from "@/server/org";
+import { getTaskForOrg, NOT_FOUND_BODY } from "@/server/tenancy";
 
 const ALLOWED = new Set(["open", "done", "cancelled"]);
 
@@ -10,11 +11,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const access = await requireOrgSession();
-  if (!access) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!access.organizationId) {
-    return NextResponse.json({ error: "no active organization" }, { status: 400 });
-  }
+  const gate = await requireActiveOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  const organizationId = gate.access.organizationId;
 
   const { id } = await context.params;
   let body: { status?: unknown };
@@ -29,10 +28,15 @@ export async function PATCH(
   }
 
   const db = getDb();
+  const existing = await getTaskForOrg(db, { organizationId, taskId: id });
+  if (!existing) {
+    return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
+  }
+
   const updated = await db
     .update(tasks)
     .set({ status, updatedAt: new Date() })
-    .where(and(eq(tasks.id, id), eq(tasks.organizationId, access.organizationId)))
+    .where(and(eq(tasks.id, id), eq(tasks.organizationId, organizationId)))
     .returning({
       id: tasks.id,
       title: tasks.title,
@@ -41,7 +45,7 @@ export async function PATCH(
     });
 
   if (updated.length === 0) {
-    return NextResponse.json({ error: "not found" }, { status: 404 });
+    return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
   }
   return NextResponse.json({ ok: true, task: updated[0] });
 }

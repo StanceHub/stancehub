@@ -2,14 +2,12 @@ import { NextResponse } from "next/server";
 import { and, asc, eq } from "drizzle-orm";
 import { meetings, tasks } from "@stancehub/db";
 import { getDb } from "@/server/db";
-import { requireOrgSession } from "@/server/org";
+import { requireActiveOrg } from "@/server/org";
 
 export async function GET() {
-  const access = await requireOrgSession();
-  if (!access) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!access.organizationId) {
-    return NextResponse.json({ error: "no active organization" }, { status: 400 });
-  }
+  const gate = await requireActiveOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  const organizationId = gate.access.organizationId;
 
   const db = getDb();
   const rows = await db
@@ -27,7 +25,7 @@ export async function GET() {
       meetings,
       and(eq(meetings.id, tasks.meetingId), eq(meetings.organizationId, tasks.organizationId)),
     )
-    .where(eq(tasks.organizationId, access.organizationId))
+    .where(eq(tasks.organizationId, organizationId))
     .orderBy(asc(tasks.createdAt))
     .limit(200);
 

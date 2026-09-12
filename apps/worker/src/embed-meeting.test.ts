@@ -96,6 +96,13 @@ describe("embedClaimDisposition", () => {
   });
 });
 
+describe("embedOrgMismatchMessage", () => {
+  it("exposes a stable terminal failure message for wrong-org payloads", async () => {
+    const { embedOrgMismatchMessage } = await import("./processors/embed-meeting");
+    expect(embedOrgMismatchMessage()).toBe("organization mismatch");
+  });
+});
+
 describe("processEmbedMeeting", () => {
   it("rejects an invalid payload before calling the database", async () => {
     await expect(processEmbedMeeting(fakeJob({ meetingId: "x" }))).rejects.toThrow();

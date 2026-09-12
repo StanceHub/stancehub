@@ -11,9 +11,11 @@ import {
 } from "./index";
 
 describe("roles", () => {
-  it("treats admin as admin", () => {
+  it("treats admin and owner as admin", () => {
     expect(isAdmin("admin")).toBe(true);
+    expect(isAdmin("owner")).toBe(true);
     expect(isAdmin("member")).toBe(false);
+    expect(isAdmin(undefined)).toBe(false);
   });
 });
 

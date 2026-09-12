@@ -13,6 +13,7 @@ export const SEARCH_STATEMENT_TIMEOUT_MS = 2000;
 export type SearchHit = {
   chunkId: string;
   meetingId: string;
+  organizationId: string;
   meetingTitle: string;
   content: string;
   score: number;
@@ -56,6 +57,7 @@ function rowsOf<T>(result: unknown): T[] {
 type RankedChunkRow = {
   chunk_id: string;
   meeting_id: string;
+  organization_id: string;
   meeting_title: string;
   content: string;
   start_ms: number | null;
@@ -67,6 +69,7 @@ function toHit(row: RankedChunkRow): SearchHit {
   return {
     chunkId: row.chunk_id,
     meetingId: row.meeting_id,
+    organizationId: row.organization_id,
     meetingTitle: row.meeting_title,
     content: row.content,
     score: Number(row.score),
@@ -146,6 +149,7 @@ export async function searchChunksByKeyword(
         SELECT
           c.id,
           c.meeting_id,
+          c.organization_id,
           c.content,
           c.start_ms,
           c.end_ms,
@@ -160,6 +164,7 @@ export async function searchChunksByKeyword(
         SELECT
           m.id AS chunk_id,
           m.meeting_id,
+          m.organization_id,
           m.meeting_title,
           m.content,
           m.start_ms,
@@ -178,9 +183,9 @@ export async function searchChunksByKeyword(
           SELECT cardinality(doc_term.positions)::float AS tf
         ) AS freq
         WHERE ts.n_qi > 0
-        GROUP BY m.id, m.meeting_id, m.meeting_title, m.content, m.start_ms, m.end_ms
+        GROUP BY m.id, m.meeting_id, m.organization_id, m.meeting_title, m.content, m.start_ms, m.end_ms
       )
-      SELECT chunk_id, meeting_id, meeting_title, content, start_ms, end_ms, score
+      SELECT chunk_id, meeting_id, organization_id, meeting_title, content, start_ms, end_ms, score
       FROM scored
       WHERE score IS NOT NULL
       ORDER BY score DESC, chunk_id ASC
@@ -213,6 +218,7 @@ export async function searchChunksByVector(
       .select({
         chunkId: chunks.id,
         meetingId: chunks.meetingId,
+        organizationId: chunks.organizationId,
         meetingTitle: meetings.title,
         content: chunks.content,
         startMs: chunks.startMs,

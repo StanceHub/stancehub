@@ -4,7 +4,12 @@ import { getWorkerDb } from "../db";
 
 const OPEN_PIPELINE = ["pending", "embedding"] as const;
 
-export async function markEmbedFailed(meetingId: string, generation: number, message: string) {
+export async function markEmbedFailed(
+  meetingId: string,
+  generation: number,
+  organizationId: string,
+  message: string,
+) {
   const db = getWorkerDb();
   await db
     .update(meetings)
@@ -16,6 +21,7 @@ export async function markEmbedFailed(meetingId: string, generation: number, mes
     .where(
       and(
         eq(meetings.id, meetingId),
+        eq(meetings.organizationId, organizationId),
         eq(meetings.embedGeneration, generation),
         inArray(meetings.pipelineStatus, [...OPEN_PIPELINE]),
       ),

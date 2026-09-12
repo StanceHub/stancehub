@@ -42,6 +42,9 @@ export async function searchVault(input: {
   limit?: number;
   mode?: "keyword" | "vector" | "both";
 }): Promise<VaultSearchResult> {
+  if (!input.organizationId.trim()) {
+    throw new Error("organizationId is required");
+  }
   const started = performance.now();
   const query = input.query.trim();
   const requestedLimit = input.limit ?? 8;

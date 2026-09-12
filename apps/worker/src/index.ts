@@ -78,7 +78,12 @@ async function main() {
         .getState()
         .then((state) => {
           if (state !== "failed") return;
-          return markEmbedFailed(parsed.data.meetingId, parsed.data.generation, err.message);
+          return markEmbedFailed(
+            parsed.data.meetingId,
+            parsed.data.generation,
+            parsed.data.organizationId,
+            err.message,
+          );
         })
         .catch((recordError) => {
           console.error("[worker] could not record embed failure", recordError);
@@ -92,7 +97,12 @@ async function main() {
         .getState()
         .then((state) => {
           if (state !== "failed") return;
-          return markSummaryFailed(parsed.data.meetingId, parsed.data.generation, err.message);
+          return markSummaryFailed(
+            parsed.data.meetingId,
+            parsed.data.generation,
+            parsed.data.organizationId,
+            err.message,
+          );
         })
         .catch((recordError) => {
           console.error("[worker] could not record summarize failure", recordError);
