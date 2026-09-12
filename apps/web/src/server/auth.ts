@@ -2,26 +2,37 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import * as schema from "@stancehub/db";
-import { getDb } from "@/server/db";
-import { getServerEnv } from "@/env";
+import { getDb } from "./db";
+import { getServerEnv } from "../env";
 
-export function createAuth() {
-  const env = getServerEnv();
+/** Drizzle tables Better Auth is configured to use — keep in sync with `createAuth`. */
+export const authDrizzleSchema = {
+  user: schema.user,
+  session: schema.session,
+  account: schema.account,
+  verification: schema.verification,
+  organization: schema.organization,
+  member: schema.member,
+  invitation: schema.invitation,
+} as const;
+
+export function createAuth(options?: {
+  database?: ReturnType<typeof getDb>;
+  secret?: string;
+  baseURL?: string;
+}) {
+  const env = options?.secret && options?.baseURL ? null : getServerEnv();
+  const database = options?.database ?? getDb();
+  const secret = options?.secret ?? env!.BETTER_AUTH_SECRET;
+  const baseURL = options?.baseURL ?? env!.BETTER_AUTH_URL;
+
   return betterAuth({
-    database: drizzleAdapter(getDb(), {
+    database: drizzleAdapter(database, {
       provider: "pg",
-      schema: {
-        user: schema.user,
-        session: schema.session,
-        account: schema.account,
-        verification: schema.verification,
-        organization: schema.organization,
-        member: schema.member,
-        invitation: schema.invitation,
-      },
+      schema: authDrizzleSchema,
     }),
-    secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    secret,
+    baseURL,
     emailAndPassword: {
       enabled: true,
     },
