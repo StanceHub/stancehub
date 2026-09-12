@@ -69,7 +69,7 @@ Failed summarize leaves artifacts empty until another successful embed schedules
 
 ### Ask has no application rate limits
 
-Org membership gates access; there is no per-user / per-org request budget on ask or chat yet.
+**Mitigated by #36** — see `docs/ASK-RATE-LIMITS.md`. Configurable per-user / per-org fixed-window limits on `POST /api/ask` with 429 + `Retry-After`. Prometheus throttle export remains #20.
 
 ### Ask / summarize streaming
 
@@ -113,7 +113,7 @@ Search/ask emit structured console metrics (query length, counts, latency). Prom
 | Admin retry-summarize UI | #33 |
 | Preserve task status across re-summarize | #34 |
 | Ask conversation history | #35 |
-| Ask rate limits | #36 |
+| Ask rate limits | #36 (shipped — see `docs/ASK-RATE-LIMITS.md`; Prometheus export remains #20) |
 | CI live LLM ask/summarize eval | #37 |
 | Citation deep-links | #38 |
 | Task assignees → org users | #39 (overlaps #29) |
