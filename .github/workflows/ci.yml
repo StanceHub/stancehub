@@ -39,3 +39,57 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  rls:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: stancehub
+          POSTGRES_PASSWORD: stancehub
+          POSTGRES_DB: stancehub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stancehub -d stancehub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Bootstrap app role
+        env:
+          PGPASSWORD: stancehub
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -h localhost -U stancehub -d stancehub -f deploy/postgres/docker-entrypoint-initdb.d/01-roles.sql
+
+      - name: Migrate (admin)
+        run: pnpm --filter @stancehub/db migrate
+        env:
+          TENANCY_RLS: "1"
+          DATABASE_URL_ADMIN: postgresql://stancehub:stancehub@localhost:5432/stancehub
+          DATABASE_URL: postgresql://stancehub_app:stancehub@localhost:5432/stancehub
+
+      - name: RLS integration tests
+        run: pnpm --filter @stancehub/db test
+        env:
+          RUN_RLS_IT: "1"
+          TENANCY_RLS: "1"
+          DATABASE_URL: postgresql://stancehub_app:stancehub@localhost:5432/stancehub
+          DATABASE_URL_ADMIN: postgresql://stancehub:stancehub@localhost:5432/stancehub

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { and, asc, eq } from "drizzle-orm";
 import { meetings, tasks } from "@stancehub/db";
-import { getDb } from "@/server/db";
+import { withOrgScope } from "@/server/db";
 import { requireOrgSession } from "@/server/org";
 import { TaskStatusButton } from "./task-status-button";
 
@@ -17,22 +17,24 @@ export default async function TasksPage() {
     );
   }
 
-  const rows = await getDb()
-    .select({
-      id: tasks.id,
-      title: tasks.title,
-      status: tasks.status,
-      assigneeHint: tasks.assigneeHint,
-      meetingTitle: meetings.title,
-    })
-    .from(tasks)
-    .innerJoin(
-      meetings,
-      and(eq(meetings.id, tasks.meetingId), eq(meetings.organizationId, tasks.organizationId)),
-    )
-    .where(eq(tasks.organizationId, access.organizationId))
-    .orderBy(asc(tasks.createdAt))
-    .limit(200);
+  const rows = await withOrgScope(access.organizationId, (tx) =>
+    tx
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        status: tasks.status,
+        assigneeHint: tasks.assigneeHint,
+        meetingTitle: meetings.title,
+      })
+      .from(tasks)
+      .innerJoin(
+        meetings,
+        and(eq(meetings.id, tasks.meetingId), eq(meetings.organizationId, tasks.organizationId)),
+      )
+      .where(eq(tasks.organizationId, access.organizationId))
+      .orderBy(asc(tasks.createdAt))
+      .limit(200),
+  );
 
   return (
     <main>

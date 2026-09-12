@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { insertJobOutbox, meetings, transcripts, publishOutboxForMeetingGeneration } from "@stancehub/db";
 import { parseTranscript } from "@stancehub/ai";
 import { embedJobId, JOB_NAMES } from "@stancehub/shared";
-import { getDb } from "@/server/db";
+import { withOrgScope, ensureAppDbRole } from "@/server/db";
 import { getQueue } from "@/server/queue";
 import { createWebOutboxQueue } from "@/server/outbox-queue";
 import { requireActiveOrg } from "@/server/org";
@@ -53,9 +53,8 @@ export async function POST(request: Request) {
   const meetingId = crypto.randomUUID();
   const transcriptId = crypto.randomUUID();
   const generation = 1;
-  const db = getDb();
 
-  await db.transaction(async (tx) => {
+  await withOrgScope(organizationId, async (tx) => {
     await tx.insert(meetings).values({
       id: meetingId,
       organizationId,
@@ -81,10 +80,11 @@ export async function POST(request: Request) {
     });
   });
 
-  const published = await publishOutboxForMeetingGeneration(db, createWebOutboxQueue(getQueue()), {
+  const published = await publishOutboxForMeetingGeneration(await ensureAppDbRole(), createWebOutboxQueue(getQueue()), {
     jobName: JOB_NAMES.embedMeeting,
     meetingId,
     generation,
+    organizationId,
   });
 
   return NextResponse.json({

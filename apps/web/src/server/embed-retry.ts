@@ -6,7 +6,7 @@ import {
   supersedePendingOutbox,
 } from "@stancehub/db";
 import { JOB_NAMES, isLiveEmbedJobState } from "@stancehub/shared";
-import { getDb } from "@/server/db";
+import { ensureAppDbRole, withOrgScope } from "@/server/db";
 import { getEmbedJob, getQueue } from "@/server/queue";
 import { createWebOutboxQueue } from "@/server/outbox-queue";
 
@@ -18,13 +18,14 @@ export type PrepareEmbedRetryResult =
 /**
  * Bump embed generation, mark pending, and insert outbox under the retry advisory lock.
  * Caller must best-effort publish after commit (do not mark meeting failed if Redis is down).
+ *
+ * Note: `getEmbedJob` runs inside the xact advisory lock intentionally (live-job race).
  */
 export async function prepareMeetingEmbedRetry(input: {
   organizationId: string;
   meetingId: string;
 }): Promise<PrepareEmbedRetryResult> {
-  const db = getDb();
-  return db.transaction(async (tx) => {
+  return withOrgScope(input.organizationId, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`embed-retry:${input.meetingId}`}))`);
 
     const [current] = await tx
@@ -80,11 +81,12 @@ export async function publishPreparedMeetingEmbed(input: {
   meetingId: string;
   generation: number;
 }) {
-  const db = getDb();
   const queue = createWebOutboxQueue(getQueue());
+  const db = await ensureAppDbRole();
   return publishOutboxForMeetingGeneration(db, queue, {
     jobName: JOB_NAMES.embedMeeting,
     meetingId: input.meetingId,
     generation: input.generation,
+    organizationId: input.organizationId,
   });
 }

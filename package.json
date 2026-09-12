@@ -14,6 +14,7 @@
     "test": "turbo run test",
     "db:generate": "dotenv -e .env -- pnpm --filter @stancehub/db generate",
     "db:migrate": "dotenv -e .env -- pnpm --filter @stancehub/db migrate",
+    "db:bootstrap-roles": "dotenv -e .env -- sh -c 'psql \"${DATABASE_URL_ADMIN:-$DATABASE_URL}\" -v ON_ERROR_STOP=1 -f deploy/postgres/docker-entrypoint-initdb.d/01-roles.sql'",
     "db:push": "dotenv -e .env -- pnpm --filter @stancehub/db push",
     "compose:up": "docker compose -f deploy/docker-compose.yml up -d",
     "compose:down": "docker compose -f deploy/docker-compose.yml down",

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { tasks } from "@stancehub/db";
-import { getDb } from "@/server/db";
+import { withOrgScope } from "@/server/db";
 import { requireActiveOrg } from "@/server/org";
 import { getTaskForOrg, NOT_FOUND_BODY } from "@/server/tenancy";
 
@@ -27,25 +27,25 @@ export async function PATCH(
     return NextResponse.json({ error: "status must be open, done, or cancelled" }, { status: 400 });
   }
 
-  const db = getDb();
-  const existing = await getTaskForOrg(db, { organizationId, taskId: id });
-  if (!existing) {
+  const updated = await withOrgScope(organizationId, async (tx) => {
+    const existing = await getTaskForOrg(tx, { organizationId, taskId: id });
+    if (!existing) return null;
+
+    const rows = await tx
+      .update(tasks)
+      .set({ status, updatedAt: new Date() })
+      .where(and(eq(tasks.id, id), eq(tasks.organizationId, organizationId)))
+      .returning({
+        id: tasks.id,
+        title: tasks.title,
+        status: tasks.status,
+        meetingId: tasks.meetingId,
+      });
+    return rows[0] ?? null;
+  });
+
+  if (!updated) {
     return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
   }
-
-  const updated = await db
-    .update(tasks)
-    .set({ status, updatedAt: new Date() })
-    .where(and(eq(tasks.id, id), eq(tasks.organizationId, organizationId)))
-    .returning({
-      id: tasks.id,
-      title: tasks.title,
-      status: tasks.status,
-      meetingId: tasks.meetingId,
-    });
-
-  if (updated.length === 0) {
-    return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
-  }
-  return NextResponse.json({ ok: true, task: updated[0] });
+  return NextResponse.json({ ok: true, task: updated });
 }

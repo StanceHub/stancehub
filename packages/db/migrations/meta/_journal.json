@@ -57,6 +57,13 @@
       "when": 1788981600000,
       "tag": "0007_job_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788985200000,
+      "tag": "0008_tenancy_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ services:
       - "5433:5432"
     volumes:
       - stancehub_postgres_data:/var/lib/postgresql/data
+      - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stancehub -d stancehub"]
       interval: 5s

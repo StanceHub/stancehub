@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { meetings } from "@stancehub/db";
-import { getDb } from "@/server/db";
+import { withOrgScope } from "@/server/db";
 import { requireOrgSession } from "@/server/org";
 import { DeleteMeetingButton } from "./delete-button";
 import { PingButton } from "./ping-button";
@@ -17,12 +17,14 @@ export default async function MeetingsPage() {
 
   const orgId = access.organizationId;
   const rows = orgId
-    ? await getDb()
-        .select()
-        .from(meetings)
-        .where(eq(meetings.organizationId, orgId))
-        .orderBy(desc(meetings.createdAt))
-        .limit(50)
+    ? await withOrgScope(orgId, (tx) =>
+        tx
+          .select()
+          .from(meetings)
+          .where(eq(meetings.organizationId, orgId))
+          .orderBy(desc(meetings.createdAt))
+          .limit(50),
+      )
     : [];
 
   return (

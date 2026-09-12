@@ -26,6 +26,7 @@ import {
   type OutboxJobName,
 } from "./outbox";
 import { meetings } from "./schema/meetings";
+import { withOrganizationScope, type DbOrTx } from "./tenancy-rls";
 
 /** BullMQ-facing port — apps adapt Queue without putting bullmq in @stancehub/db. */
 export type OutboxJobQueue = {
@@ -54,18 +55,29 @@ function logOutbox(event: string, fields: Record<string, unknown>) {
  * - gen mismatch → superseded
  * - gen match + terminal meeting → published (no re-add; covers removeOnComplete race)
  * - gen match + open → ensureQueued → published; else attempts++/exhaust→failed
+ *
+ * When `organizationId` is set (web / app role), Redis runs **outside** the RLS txn;
+ * DB reads/writes use short `withOrganizationScope` windows.
  */
 export async function publishOutboxRow(
-  db: Database,
+  db: Database | DbOrTx,
   queue: OutboxJobQueue,
   row: JobOutboxRow,
+  options?: { organizationId?: string },
 ): Promise<"published" | "superseded" | "failed" | "retry" | "skipped"> {
   if (row.status !== OUTBOX_STATUS.pending) return "skipped";
 
-  const open = await meetingOpenForOutbox(db, row);
+  const scoped = async <T>(fn: (tx: DbOrTx) => Promise<T>): Promise<T> => {
+    if (options?.organizationId) {
+      return withOrganizationScope(db as Database, options.organizationId, fn);
+    }
+    return fn(db);
+  };
+
+  const open = await scoped((tx) => meetingOpenForOutbox(tx, row));
   const decision = outboxDrainDecision(open.kind);
   if (decision === "supersede") {
-    await markOutboxSuperseded(db, row.id);
+    await scoped((tx) => markOutboxSuperseded(tx, row.id));
     logOutbox("vault.outbox.superseded", {
       outboxId: row.id,
       jobName: row.jobName,
@@ -76,7 +88,7 @@ export async function publishOutboxRow(
     return "superseded";
   }
   if (decision === "publish_terminal") {
-    await markOutboxPublished(db, row.id);
+    await scoped((tx) => markOutboxPublished(tx, row.id));
     logOutbox("vault.outbox.published", {
       outboxId: row.id,
       jobName: row.jobName,
@@ -94,7 +106,7 @@ export async function publishOutboxRow(
       jobId,
       payload: row.payload as EmbedMeetingPayload | SummarizeMeetingPayload,
     });
-    await markOutboxPublished(db, row.id);
+    await scoped((tx) => markOutboxPublished(tx, row.id));
     logOutbox("vault.outbox.published", {
       outboxId: row.id,
       jobName: row.jobName,
@@ -106,7 +118,7 @@ export async function publishOutboxRow(
     return "published";
   } catch (error) {
     const message = error instanceof Error ? error.message : "outbox publish failed";
-    await markOutboxPublishAttemptFailed(db, row.id, message);
+    await scoped((tx) => markOutboxPublishAttemptFailed(tx, row.id, message));
     const attempts = row.attempts + 1;
     const exhausted = outboxExhausted({ attempts, createdAt: row.createdAt });
     logOutbox("vault.outbox.publish_failed", {
@@ -119,9 +131,9 @@ export async function publishOutboxRow(
       exhausted,
     });
     if (exhausted) {
-      const failed = await markOutboxFailed(db, row.id, message);
+      const failed = await scoped((tx) => markOutboxFailed(tx, row.id, message));
       if (failed) {
-        await failMeetingForOutbox(db, row, `Outbox publish exhausted: ${message}`);
+        await scoped((tx) => failMeetingForOutbox(tx, row, `Outbox publish exhausted: ${message}`));
         return "failed";
       }
       // Another publisher already moved the row (e.g. published) — do not fail closed.
@@ -196,7 +208,7 @@ export async function reconcileOpenJobsWithOutbox(db: Database, queue: OutboxJob
 
 /** Exported for tests — safety-net reconcile for one open meeting generation. */
 export async function reconcileOpenOutboxJob(
-  db: Database,
+  db: DbOrTx,
   queue: OutboxJobQueue,
   input: {
     jobName: OutboxJobName;
@@ -269,13 +281,25 @@ export async function reconcileOpenOutboxJob(
 export async function publishOutboxForMeetingGeneration(
   db: Database,
   queue: OutboxJobQueue,
-  input: { jobName: OutboxJobName; meetingId: string; generation: number },
+  input: {
+    jobName: OutboxJobName;
+    meetingId: string;
+    generation: number;
+    /** When set (web app role), scopes short DB windows and keeps Redis outside the txn. */
+    organizationId?: string;
+  },
 ) {
-  const row = await findOutboxForMeetingGeneration(db, input);
+  const row = input.organizationId
+    ? await withOrganizationScope(db, input.organizationId, (tx) =>
+        findOutboxForMeetingGeneration(tx, input),
+      )
+    : await findOutboxForMeetingGeneration(db, input);
   if (!row || row.status !== OUTBOX_STATUS.pending) {
     return { enqueue: "none" as const };
   }
-  const result = await publishOutboxRow(db, queue, row);
+  const result = await publishOutboxRow(db, queue, row, {
+    organizationId: input.organizationId,
+  });
   if (result === "published") return { enqueue: "redis" as const, outboxId: row.id };
   return { enqueue: "outbox" as const, outboxId: row.id, result };
 }
