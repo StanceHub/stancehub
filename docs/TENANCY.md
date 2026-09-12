@@ -25,7 +25,7 @@ App role grants are limited to Better Auth tables **plus** vault tables (migrati
 
 Vault tables with policies (auth / Better Auth tables are **not** RLS’d):
 
-`meetings`, `transcripts`, `chunks`, `meeting_artifacts`, `tasks`, `job_outbox`, `org_search_stats`, `org_term_df`
+`meetings`, `transcripts`, `chunks`, `meeting_artifacts`, `tasks`, `job_outbox`, `org_search_stats`, `org_term_df`, `audit_events` (SELECT+INSERT only for app role — see `docs/AUDIT.md`)
 
 Policy: `organization_id = nullif(current_setting('app.organization_id', true), '')` — missing/empty GUC → **0 rows** (fail closed).
 

@@ -34,6 +34,7 @@ export async function getTaskForOrg(
       organizationId: tasks.organizationId,
       status: tasks.status,
       title: tasks.title,
+      meetingId: tasks.meetingId,
     })
     .from(tasks)
     .where(and(eq(tasks.id, input.taskId), eq(tasks.organizationId, input.organizationId)))

@@ -3,10 +3,17 @@
  * Requires Postgres with role bootstrap + migration 0008 applied.
  * Run: RUN_RLS_IT=1 TENANCY_RLS=1 DATABASE_URL=... DATABASE_URL_ADMIN=... pnpm --filter @stancehub/db test
  */
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  AUDIT_ACTIONS,
+  AUDIT_ACTOR_TYPES,
+  AUDIT_OUTCOMES,
+  insertAuditEvent,
+} from "./audit";
 import { openDatabase, type Database } from "./client";
 import { organization } from "./schema/auth";
+import { auditEvents } from "./schema/audit";
 import { meetings } from "./schema/meetings";
 import {
   assertAdminDatabaseRole,
@@ -36,6 +43,7 @@ describe.skipIf(!run)("enterprise RLS", () => {
 
   afterAll(async () => {
     if (!admin || !app) return;
+    await admin.db.delete(auditEvents).where(inArray(auditEvents.organizationId, [orgA, orgB]));
     await admin.db.delete(meetings).where(inArray(meetings.organizationId, [orgA, orgB]));
     await admin.db.delete(organization).where(inArray(organization.id, [orgA, orgB]));
     await app.close();
@@ -159,5 +167,43 @@ describe.skipIf(!run)("enterprise RLS", () => {
       tx.select({ id: meetings.id, organizationId: meetings.organizationId }).from(meetings),
     );
     expect(stillA).toEqual([{ id: meetingA, organizationId: orgA }]);
+  });
+
+  it("audit_events insert is org-scoped and app role cannot update", async () => {
+    const eventId = crypto.randomUUID();
+    await withOrganizationScope(app.db, orgA, async (tx) => {
+      await tx.insert(auditEvents).values({
+        id: eventId,
+        organizationId: orgA,
+        actorType: AUDIT_ACTOR_TYPES.user,
+        action: AUDIT_ACTIONS.askMiss,
+        outcome: AUDIT_OUTCOMES.miss,
+        metadata: { queryLength: 3 },
+      });
+    });
+
+    const visible = await withOrganizationScope(app.db, orgA, (tx) =>
+      tx.select({ id: auditEvents.id }).from(auditEvents).where(eq(auditEvents.id, eventId)),
+    );
+    expect(visible.map((r) => r.id)).toEqual([eventId]);
+
+    const hidden = await withOrganizationScope(app.db, orgB, (tx) =>
+      tx.select({ id: auditEvents.id }).from(auditEvents).where(eq(auditEvents.id, eventId)),
+    );
+    expect(hidden).toEqual([]);
+
+    await expect(
+      withOrganizationScope(app.db, orgA, (tx) =>
+        tx.update(auditEvents).set({ outcome: "tampered" }).where(eq(auditEvents.id, eventId)),
+      ),
+    ).rejects.toThrow();
+
+    await insertAuditEvent(admin.db, {
+      organizationId: orgA,
+      actorType: AUDIT_ACTOR_TYPES.worker,
+      action: AUDIT_ACTIONS.summarizeSucceeded,
+      outcome: AUDIT_OUTCOMES.success,
+      metadata: { meetingId: meetingA },
+    });
   });
 });

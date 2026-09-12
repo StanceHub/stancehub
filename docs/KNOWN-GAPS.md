@@ -118,7 +118,7 @@ Search/ask emit structured console metrics (query length, counts, latency). Prom
 | Citation deep-links | #38 |
 | Task assignees → org users | #39 (overlaps #29) |
 | Native Ollama Cloud adapter | #40 |
-| Audit trail for ask / summarize / tasks | #41 (overlaps #10 / #14) |
+| Audit trail for ask / summarize / tasks | #41 (durable `audit_events` — see `docs/AUDIT.md`; retention job remains #14) |
 | Enterprise SSO / SCIM | #42 |
 | Durable enqueue (outbox) for embed/summarize | #43 (outbox shipped; stall window remains) |
 | Ask: show sources when model omits [n] | #44 |

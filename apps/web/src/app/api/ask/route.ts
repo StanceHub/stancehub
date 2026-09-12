@@ -6,6 +6,7 @@ import {
 } from "@stancehub/ai";
 import { getProcessEnvRecord } from "@/env";
 import { askWithChat, citationsFromAnswer, readAskMaxTokens } from "@/server/ask";
+import { AUDIT_ACTIONS, AUDIT_OUTCOMES, recordAskAuditEvent } from "@/server/audit";
 import { buildAskMessages } from "@stancehub/shared";
 import { requireActiveOrg } from "@/server/org";
 import { searchVault } from "@/server/search";
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
   const gate = await requireActiveOrg();
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const organizationId = gate.access.organizationId;
+  const userId = gate.access.session.user.id;
 
   let body: { q?: unknown; limit?: unknown };
   try {
@@ -59,14 +61,23 @@ export async function POST(request: Request) {
     const hits = filterHitsForOrganization(retrieval.fused, organizationId);
     hitCount = hits.length;
     if (hits.length === 0) {
+      const totalMs = Math.round(performance.now() - started);
       logAskMetrics({
         organizationId,
         queryLength: query.length,
         hitCount: 0,
         citationCount: 0,
         miss: true,
-        totalMs: Math.round(performance.now() - started),
+        totalMs,
         error: false,
+      });
+      await recordAskAuditEvent({
+        organizationId,
+        userId,
+        action: AUDIT_ACTIONS.askMiss,
+        outcome: AUDIT_OUTCOMES.miss,
+        query,
+        metadata: { queryLength: query.length, hitCount: 0, citationCount: 0, totalMs },
       });
       return NextResponse.json({
         ok: true,
@@ -95,14 +106,28 @@ export async function POST(request: Request) {
       queryLength: query.length,
     });
     const citations = citationsFromAnswer(content, hits);
+    const totalMs = Math.round(performance.now() - started);
     logAskMetrics({
       organizationId,
       queryLength: query.length,
       hitCount: hits.length,
       citationCount: citations.length,
       miss: false,
-      totalMs: Math.round(performance.now() - started),
+      totalMs,
       error: false,
+    });
+    await recordAskAuditEvent({
+      organizationId,
+      userId,
+      action: AUDIT_ACTIONS.askCompleted,
+      outcome: AUDIT_OUTCOMES.success,
+      query,
+      metadata: {
+        queryLength: query.length,
+        hitCount: hits.length,
+        citationCount: citations.length,
+        totalMs,
+      },
     });
     return NextResponse.json({
       ok: true,
@@ -116,14 +141,29 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[ask]", error instanceof Error ? error.message : error);
+    const totalMs = Math.round(performance.now() - started);
     logAskMetrics({
       organizationId,
       queryLength: query.length,
       hitCount,
       citationCount: 0,
       miss: false,
-      totalMs: Math.round(performance.now() - started),
+      totalMs,
       error: true,
+    });
+    await recordAskAuditEvent({
+      organizationId,
+      userId,
+      action: AUDIT_ACTIONS.askFailed,
+      outcome: AUDIT_OUTCOMES.failure,
+      query,
+      metadata: {
+        queryLength: query.length,
+        hitCount,
+        citationCount: 0,
+        totalMs,
+        errorClass: isChatCompletionTruncatedError(error) ? "truncated" : "error",
+      },
     });
     if (isChatCompletionTruncatedError(error)) {
       return NextResponse.json(
