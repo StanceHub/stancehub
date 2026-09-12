@@ -33,6 +33,8 @@ pnpm db:migrate
 pnpm dev                 # web :3000 + worker
 ```
 
+Ops: backup/restore for Compose — `docs/BACKUP-DR.md`. Better Auth schema bumps — `docs/AUTH-SCHEMA.md`.
+
 - Health: `GET http://localhost:3000/api/health` → `{ ok: true, checks: { database, redis } }`
 - Sign up → creates org (Admin) → stub meetings list
 - “Enqueue BullMQ ping” verifies the worker
@@ -52,4 +54,4 @@ deploy/            docker-compose.yml
 
 ## Contributing
 
-See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs). Accepted limits: `docs/KNOWN-GAPS.md`. Embedding vs chat env: `docs/LLM-PROFILES.md`. Tenancy / RLS: `docs/TENANCY.md`. Audit: `docs/AUDIT.md`. Ask rate limits: `docs/ASK-RATE-LIMITS.md`.
+See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs). Accepted limits: `docs/KNOWN-GAPS.md`. Embedding vs chat env: `docs/LLM-PROFILES.md`. Tenancy / RLS: `docs/TENANCY.md`. Audit: `docs/AUDIT.md`. Ask rate limits: `docs/ASK-RATE-LIMITS.md`. Auth schema upgrades: `docs/AUTH-SCHEMA.md`. Backup/DR: `docs/BACKUP-DR.md`.

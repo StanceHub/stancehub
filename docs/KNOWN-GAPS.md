@@ -123,7 +123,7 @@ Search/ask emit structured console metrics (query length, counts, latency). Prom
 | Durable enqueue (outbox) for embed/summarize | #43 (outbox shipped; stall window remains) |
 | Ask: show sources when model omits [n] | #44 |
 | Ask over org tasks (status/assignee) | #45 |
-| Backup / restore / DR runbook | #46 |
-| CI Better Auth ↔ Drizzle schema drift | #47 |
+| CI Better Auth ↔ Drizzle schema drift | #47 (test + `docs/AUTH-SCHEMA.md`) |
+| Backup / restore / DR runbook | #46 (see `docs/BACKUP-DR.md`) |
 | Stronger per-tenant isolation beyond org-row filters | #49 (CE fail-closed + Enterprise RLS — see `docs/TENANCY.md`) |
 | Documented embed/summarize enqueue crash gaps | mitigated by #43 outbox |
