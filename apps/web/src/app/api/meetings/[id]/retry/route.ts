@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  enqueuePreparedMeetingEmbed,
-  markEmbedEnqueueFailed,
-  prepareMeetingEmbedRetry,
-} from "@/server/embed-retry";
+import { embedJobId } from "@stancehub/shared";
+import { prepareMeetingEmbedRetry, publishPreparedMeetingEmbed } from "@/server/embed-retry";
 import { requireOrgSession } from "@/server/org";
 
 export async function POST(
@@ -20,7 +17,6 @@ export async function POST(
   }
 
   const { id } = await context.params;
-  let committedGeneration: number | null = null;
   try {
     const prepared = await prepareMeetingEmbedRetry({
       organizationId: access.organizationId,
@@ -34,23 +30,24 @@ export async function POST(
       return NextResponse.json({ ok: true, alreadyRunning: true, meetingId: id, jobId: prepared.jobId });
     }
 
-    committedGeneration = prepared.generation;
-    const queued = await enqueuePreparedMeetingEmbed({
+    const published = await publishPreparedMeetingEmbed({
       organizationId: access.organizationId,
       meetingId: id,
       generation: prepared.generation,
     });
-    return NextResponse.json({ ok: true, meetingId: id, jobId: queued.job.id });
+    return NextResponse.json({
+      ok: true,
+      meetingId: id,
+      generation: prepared.generation,
+      enqueue: published.enqueue,
+      outboxId: prepared.outboxId,
+      jobId:
+        published.enqueue === "redis"
+          ? embedJobId(id, prepared.generation)
+          : undefined,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "enqueue failed";
-    if (committedGeneration != null) {
-      await markEmbedEnqueueFailed({
-        organizationId: access.organizationId,
-        meetingId: id,
-        generation: committedGeneration,
-        message,
-      });
-    }
+    const message = error instanceof Error ? error.message : "retry failed";
     return NextResponse.json({ error: message, meetingId: id }, { status: 500 });
   }
 }
