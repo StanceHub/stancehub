@@ -36,6 +36,11 @@ export function embedClaimDisposition(currentGeneration: number | null, payloadG
   return "claim" as const;
 }
 
+/** Wrong-org payloads are poison — terminal failure, never silent success. */
+export function embedOrgMismatchMessage() {
+  return "organization mismatch";
+}
+
 export async function processEmbedMeeting(job: Job) {
   const payload = embedMeetingPayloadSchema.parse(job.data);
   try {
@@ -52,21 +57,48 @@ export async function processEmbedMeeting(job: Job) {
       .orderBy(desc(transcripts.version))
       .limit(1);
 
-    if (!transcript || transcript.organizationId !== payload.organizationId) {
+    if (!transcript) {
       return { ok: true as const, meetingId: payload.meetingId, stale: true };
+    }
+    if (transcript.organizationId !== payload.organizationId) {
+      await markEmbedFailed(
+        payload.meetingId,
+        payload.generation,
+        payload.organizationId,
+        embedOrgMismatchMessage(),
+      );
+      throw new Error(embedOrgMismatchMessage());
     }
 
     const claimed = await db
       .update(meetings)
       .set({ pipelineStatus: "embedding", pipelineError: null, updatedAt: new Date() })
-      .where(and(eq(meetings.id, payload.meetingId), eq(meetings.embedGeneration, payload.generation)))
+      .where(
+        and(
+          eq(meetings.id, payload.meetingId),
+          eq(meetings.organizationId, payload.organizationId),
+          eq(meetings.embedGeneration, payload.generation),
+        ),
+      )
       .returning({ id: meetings.id });
     if (claimed.length === 0) {
       const [current] = await db
-        .select({ generation: meetings.embedGeneration })
+        .select({
+          generation: meetings.embedGeneration,
+          organizationId: meetings.organizationId,
+        })
         .from(meetings)
         .where(eq(meetings.id, payload.meetingId))
         .limit(1);
+      if (current && current.organizationId !== payload.organizationId) {
+        await markEmbedFailed(
+          payload.meetingId,
+          payload.generation,
+          payload.organizationId,
+          embedOrgMismatchMessage(),
+        );
+        throw new Error(embedOrgMismatchMessage());
+      }
       const disposition = embedClaimDisposition(current?.generation ?? null, payload.generation);
       if (disposition === "wait") {
         throw new Error("Embed generation is not committed yet");
@@ -138,7 +170,13 @@ export async function processEmbedMeeting(job: Job) {
       const ready = await tx
         .update(meetings)
         .set({ pipelineStatus: "ready", pipelineError: null, updatedAt: new Date() })
-        .where(and(eq(meetings.id, payload.meetingId), eq(meetings.embedGeneration, payload.generation)))
+        .where(
+          and(
+            eq(meetings.id, payload.meetingId),
+            eq(meetings.organizationId, payload.organizationId),
+            eq(meetings.embedGeneration, payload.generation),
+          ),
+        )
         .returning({ id: meetings.id });
       if (ready.length === 0) {
         throw new Error("Embed attempt was superseded");
@@ -169,8 +207,8 @@ export async function processEmbedMeeting(job: Job) {
     if (message === "Embed attempt was superseded") {
       return { ok: true as const, meetingId: payload.meetingId, stale: true };
     }
-    if (isLastEmbedAttempt(job)) {
-      await markEmbedFailed(payload.meetingId, payload.generation, message);
+    if (isLastEmbedAttempt(job) || message === embedOrgMismatchMessage()) {
+      await markEmbedFailed(payload.meetingId, payload.generation, payload.organizationId, message);
     }
     throw error;
   }

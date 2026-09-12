@@ -7,8 +7,9 @@ import {
 import { getProcessEnvRecord } from "@/env";
 import { askWithChat, citationsFromAnswer, readAskMaxTokens } from "@/server/ask";
 import { buildAskMessages } from "@stancehub/shared";
-import { requireOrgSession } from "@/server/org";
+import { requireActiveOrg } from "@/server/org";
 import { searchVault } from "@/server/search";
+import { filterHitsForOrganization } from "@/server/tenancy-search";
 
 function logAskMetrics(fields: Record<string, string | number | boolean | null>) {
   console.info(JSON.stringify({ event: "vault.ask", ...fields }));
@@ -16,11 +17,9 @@ function logAskMetrics(fields: Record<string, string | number | boolean | null>)
 
 export async function POST(request: Request) {
   const started = performance.now();
-  const access = await requireOrgSession();
-  if (!access) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!access.organizationId) {
-    return NextResponse.json({ error: "no active organization" }, { status: 400 });
-  }
+  const gate = await requireActiveOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  const organizationId = gate.access.organizationId;
 
   let body: { q?: unknown; limit?: unknown };
   try {
@@ -52,16 +51,16 @@ export async function POST(request: Request) {
   let hitCount = 0;
   try {
     const retrieval = await searchVault({
-      organizationId: access.organizationId,
+      organizationId,
       query,
       limit,
       mode: "both",
     });
-    const hits = retrieval.fused;
+    const hits = filterHitsForOrganization(retrieval.fused, organizationId);
     hitCount = hits.length;
     if (hits.length === 0) {
       logAskMetrics({
-        organizationId: access.organizationId,
+        organizationId,
         queryLength: query.length,
         hitCount: 0,
         citationCount: 0,
@@ -92,12 +91,12 @@ export async function POST(request: Request) {
       client,
       messages: buildAskMessages(query, hits),
       maxTokens,
-      organizationId: access.organizationId,
+      organizationId,
       queryLength: query.length,
     });
     const citations = citationsFromAnswer(content, hits);
     logAskMetrics({
-      organizationId: access.organizationId,
+      organizationId,
       queryLength: query.length,
       hitCount: hits.length,
       citationCount: citations.length,
@@ -118,7 +117,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[ask]", error instanceof Error ? error.message : error);
     logAskMetrics({
-      organizationId: access.organizationId,
+      organizationId,
       queryLength: query.length,
       hitCount,
       citationCount: 0,

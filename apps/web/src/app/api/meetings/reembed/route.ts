@@ -3,24 +3,19 @@ import { asc, eq } from "drizzle-orm";
 import { meetings } from "@stancehub/db";
 import { getDb } from "@/server/db";
 import { prepareMeetingEmbedRetry, publishPreparedMeetingEmbed } from "@/server/embed-retry";
-import { requireOrgSession } from "@/server/org";
+import { requireAdminOrg } from "@/server/org";
 
 /** Org-scoped bulk re-embed. Sequential enqueue to avoid stampeding the worker/LLM. */
 export async function POST() {
-  const access = await requireOrgSession();
-  if (!access) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  if (!access.organizationId) {
-    return NextResponse.json({ error: "no active organization" }, { status: 400 });
-  }
-  if (!access.isAdmin) {
-    return NextResponse.json({ error: "admin required" }, { status: 403 });
-  }
+  const gate = await requireAdminOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+  const organizationId = gate.access.organizationId;
 
   const db = getDb();
   const rows = await db
     .select({ id: meetings.id })
     .from(meetings)
-    .where(eq(meetings.organizationId, access.organizationId))
+    .where(eq(meetings.organizationId, organizationId))
     .orderBy(asc(meetings.createdAt));
 
   let queued = 0;
@@ -32,7 +27,7 @@ export async function POST() {
   for (const row of rows) {
     try {
       const prepared = await prepareMeetingEmbedRetry({
-        organizationId: access.organizationId,
+        organizationId,
         meetingId: row.id,
       });
       if (prepared.status === "not_found") {
@@ -44,7 +39,7 @@ export async function POST() {
         continue;
       }
       const published = await publishPreparedMeetingEmbed({
-        organizationId: access.organizationId,
+        organizationId,
         meetingId: row.id,
         generation: prepared.generation,
       });
@@ -58,7 +53,7 @@ export async function POST() {
 
   return NextResponse.json({
     ok: errors.length === 0,
-    organizationId: access.organizationId,
+    organizationId,
     considered: rows.length,
     queued,
     outboxPending,

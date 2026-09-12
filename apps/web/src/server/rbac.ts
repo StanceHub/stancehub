@@ -9,7 +9,3 @@ export async function requireSession() {
   }
   return session;
 }
-
-export function memberRoleIsAdmin(role: string | undefined | null) {
-  return role === "admin" || role === "owner";
-}

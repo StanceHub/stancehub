@@ -12,7 +12,12 @@ import { createWorkerOutboxQueue } from "../outbox-queue";
 
 const OPEN_SUMMARY = ["pending", "running"] as const;
 
-export async function markSummaryFailed(meetingId: string, generation: number, message: string) {
+export async function markSummaryFailed(
+  meetingId: string,
+  generation: number,
+  organizationId: string,
+  message: string,
+) {
   const db = getWorkerDb();
   await db
     .update(meetings)
@@ -24,6 +29,7 @@ export async function markSummaryFailed(meetingId: string, generation: number, m
     .where(
       and(
         eq(meetings.id, meetingId),
+        eq(meetings.organizationId, organizationId),
         eq(meetings.summaryGeneration, generation),
         inArray(meetings.summaryStatus, [...OPEN_SUMMARY]),
       ),

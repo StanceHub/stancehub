@@ -5,6 +5,7 @@ function hit(chunkId: string, score: number): SearchHit {
   return {
     chunkId,
     meetingId: "meeting",
+    organizationId: "org1",
     meetingTitle: "Weekly",
     content: chunkId,
     score,

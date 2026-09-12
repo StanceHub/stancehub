@@ -19,12 +19,16 @@ import {
   readSummarizeMaxTokens,
 } from "../chat-config";
 import { getWorkerDb } from "../db";
-import { isLastEmbedAttempt } from "./embed-meeting";
+import { embedOrgMismatchMessage, isLastEmbedAttempt } from "./embed-meeting";
 import { markSummaryFailed } from "./summarize-status";
 
 export const SUMMARY_PROMPT_VERSION = "v1";
 
 const CLAIMABLE_SUMMARY = ["pending", "running"] as const;
+
+export function summarizeOrgMismatchMessage() {
+  return embedOrgMismatchMessage();
+}
 
 export function summarizeClaimDisposition(
   currentGeneration: number | null,
@@ -148,10 +152,20 @@ export async function processSummarizeMeeting(job: Job) {
         .select({
           generation: meetings.summaryGeneration,
           status: meetings.summaryStatus,
+          organizationId: meetings.organizationId,
         })
         .from(meetings)
         .where(eq(meetings.id, payload.meetingId))
         .limit(1);
+      if (current && current.organizationId !== payload.organizationId) {
+        await markSummaryFailed(
+          payload.meetingId,
+          payload.generation,
+          payload.organizationId,
+          summarizeOrgMismatchMessage(),
+        );
+        throw new Error(summarizeOrgMismatchMessage());
+      }
       const disposition = summarizeClaimDisposition(current?.generation ?? null, payload.generation);
       if (disposition === "wait") {
         throw new Error("Summary generation is not committed yet");
@@ -303,8 +317,13 @@ export async function processSummarizeMeeting(job: Job) {
     if (message === "Summarize attempt was superseded") {
       return { ok: true as const, meetingId: payload.meetingId, stale: true };
     }
-    if (isLastEmbedAttempt(job)) {
-      await markSummaryFailed(payload.meetingId, payload.generation, message);
+    if (isLastEmbedAttempt(job) || message === summarizeOrgMismatchMessage()) {
+      await markSummaryFailed(
+        payload.meetingId,
+        payload.generation,
+        payload.organizationId,
+        message,
+      );
     }
     throw error;
   }

@@ -123,3 +123,11 @@ describe("summarizeWithChat", () => {
     expect(chat).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("summarizeOrgMismatchMessage", () => {
+  it("matches embed org mismatch for terminal failure", async () => {
+    const { summarizeOrgMismatchMessage } = await import("./processors/summarize-meeting");
+    const { embedOrgMismatchMessage } = await import("./processors/embed-meeting");
+    expect(summarizeOrgMismatchMessage()).toBe(embedOrgMismatchMessage());
+  });
+});

@@ -1,6 +1,7 @@
-export const ROLES = ["admin", "member"] as const;
+export const ROLES = ["admin", "owner", "member"] as const;
 export type Role = (typeof ROLES)[number];
 
-export function isAdmin(role: string): boolean {
-  return role === "admin";
+/** Privileged vault mutations (delete / retry / reembed). Better Auth creator is `admin`; some installs use `owner`. */
+export function isAdmin(role: string | null | undefined): boolean {
+  return role === "admin" || role === "owner";
 }
