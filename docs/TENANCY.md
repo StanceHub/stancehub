@@ -19,9 +19,9 @@ After migration `0008_tenancy_rls`, vault tables always have **ENABLE + FORCE RL
 |---|---|
 | `DATABASE_URL` | Web / app role (`stancehub_app`): **NOSUPERUSER**, **NOBYPASSRLS**. Web **must not** use the admin URL. |
 | `DATABASE_URL_ADMIN` | Migrate + worker (superuser or BYPASSRLS). **Required** when `TENANCY_RLS=1`. |
-| `TENANCY_RLS` | `1` = require admin URL for migrate/worker; refuse bypass on app pool init; web publish uses short scoped DB windows. `0` = CE (single bypass URL ok). |
+| `TENANCY_RLS` | `1` = require admin URL for migrate/worker; refuse bypass on app pool (awaited via `ensureAppDbRole` / health); refuse non-bypass on worker/migrate admin URL; web publish uses short scoped DB windows. `0` = CE (single bypass URL ok). |
 
-`withOrgScope` always sets `SET LOCAL app.organization_id` for vault mutations/reads (harmless under a bypass role). Search scopes **DB only**; embedding HTTP and Redis outbox publish stay outside the RLS transaction. Retry/delete may still call Redis while holding an advisory **xact** lock (intentional race control).
+App role grants are limited to Better Auth tables **plus** vault tables (migration `0009`). Auth tables stay **without** RLS so membership checks work on the same `DATABASE_URL`.
 
 Vault tables with policies (auth / Better Auth tables are **not** RLS’d):
 
@@ -29,7 +29,9 @@ Vault tables with policies (auth / Better Auth tables are **not** RLS’d):
 
 Policy: `organization_id = nullif(current_setting('app.organization_id', true), '')` — missing/empty GUC → **0 rows** (fail closed).
 
-Role bootstrap (passwords **not** in migration SQL): `deploy/postgres/docker-entrypoint-initdb.d/01-roles.sql` on fresh compose volumes. Existing volumes: `pnpm db:bootstrap-roles` (uses `DATABASE_URL_ADMIN` when set), then migrate.
+Role bootstrap (passwords **not** in migration SQL): `deploy/postgres/docker-entrypoint-initdb.d/01-roles.sql` on fresh compose volumes. **Existing volumes must run `pnpm db:bootstrap-roles` before migrate** — migration `0008` fails closed if `stancehub_app` is missing.
+
+`withOrgScope` always sets `SET LOCAL app.organization_id` for vault mutations/reads (harmless under a bypass role). Search scopes **DB only**; embedding HTTP and Redis outbox publish stay outside the RLS transaction. Retry/delete may still call Redis while holding an advisory **xact** lock (intentional race control).
 
 ## Route × role matrix
 

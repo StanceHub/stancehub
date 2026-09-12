@@ -12,7 +12,7 @@ import {
 } from "@stancehub/shared";
 import { createRedisConnection } from "./connection";
 import { processPing } from "./processors/ping";
-import { closeWorkerDb, getWorkerDb } from "./db";
+import { closeWorkerDb, ensureWorkerDb } from "./db";
 import { processEmbedMeeting } from "./processors/embed-meeting";
 import { markEmbedFailed } from "./processors/embed-status";
 import { processSummarizeMeeting } from "./processors/summarize-meeting";
@@ -22,7 +22,7 @@ import { createWorkerOutboxQueue } from "./outbox-queue";
 const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 
 async function drainAndReconcile(queue: Queue) {
-  const db = getWorkerDb();
+  const db = await ensureWorkerDb();
   const outboxQueue = createWorkerOutboxQueue(queue);
   await drainOutbox(db, outboxQueue);
   await reconcileOpenJobsWithOutbox(db, outboxQueue);
@@ -32,12 +32,14 @@ async function main() {
   const connection = createRedisConnection(redisUrl);
   const reconcileConnection = createRedisConnection(redisUrl);
   const queue = new Queue(QUEUE_NAME, { connection: reconcileConnection });
+  await ensureWorkerDb();
   await drainAndReconcile(queue);
 
   let drainInFlight: Promise<void> | null = null;
   const outboxTimer = setInterval(() => {
     if (drainInFlight) return;
-    drainInFlight = drainOutbox(getWorkerDb(), createWorkerOutboxQueue(queue))
+    drainInFlight = ensureWorkerDb()
+      .then((db) => drainOutbox(db, createWorkerOutboxQueue(queue)))
       .then(() => undefined)
       .catch((err) => {
         console.error("[worker] outbox drain failed", err);

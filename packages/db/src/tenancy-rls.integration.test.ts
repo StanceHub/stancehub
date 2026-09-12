@@ -9,6 +9,7 @@ import { openDatabase, type Database } from "./client";
 import { organization } from "./schema/auth";
 import { meetings } from "./schema/meetings";
 import {
+  assertAdminDatabaseRole,
   assertAppDatabaseRole,
   withOrganizationScope,
 } from "./tenancy-rls";
@@ -116,5 +117,47 @@ describe.skipIf(!run)("enterprise RLS", () => {
       if (prev === undefined) delete process.env.TENANCY_RLS;
       else process.env.TENANCY_RLS = prev;
     }
+  });
+
+  it("assertAdminDatabaseRole refuses app role when TENANCY_RLS=1", async () => {
+    const prev = process.env.TENANCY_RLS;
+    process.env.TENANCY_RLS = "1";
+    try {
+      await expect(assertAdminDatabaseRole(app.db)).rejects.toThrow(/BYPASSRLS|superuser/);
+      await expect(assertAdminDatabaseRole(admin.db as Database)).resolves.toBeUndefined();
+    } finally {
+      if (prev === undefined) delete process.env.TENANCY_RLS;
+      else process.env.TENANCY_RLS = prev;
+    }
+  });
+
+  it("WITH CHECK denies cross-org insert and update under scoped GUC", async () => {
+    const spoofId = crypto.randomUUID();
+    await expect(
+      withOrganizationScope(app.db, orgA, (tx) =>
+        tx.insert(meetings).values({
+          id: spoofId,
+          organizationId: orgB,
+          title: "spoof",
+          source: "upload",
+          pipelineStatus: "ready",
+          embedGeneration: 1,
+        }),
+      ),
+    ).rejects.toThrow();
+
+    await expect(
+      withOrganizationScope(app.db, orgA, (tx) =>
+        tx
+          .update(meetings)
+          .set({ organizationId: orgB, title: "moved" })
+          .where(inArray(meetings.id, [meetingA])),
+      ),
+    ).rejects.toThrow();
+
+    const stillA = await withOrganizationScope(app.db, orgA, (tx) =>
+      tx.select({ id: meetings.id, organizationId: meetings.organizationId }).from(meetings),
+    );
+    expect(stillA).toEqual([{ id: meetingA, organizationId: orgA }]);
   });
 });

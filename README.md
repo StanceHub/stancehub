@@ -28,7 +28,8 @@ pnpm install
 pnpm compose:up          # containers: stancehub-postgres (:5433), stancehub-redis (:6379)
 pnpm db:generate         # first time / after schema changes
 pnpm db:migrate
-# Optional Enterprise RLS: pnpm db:bootstrap-roles (existing volumes), then set TENANCY_RLS=1 + dual URLs — see docs/TENANCY.md
+# Existing Postgres volumes: run `pnpm db:bootstrap-roles` once before migrate (creates stancehub_app).
+# Optional Enterprise RLS: set TENANCY_RLS=1 + dual URLs — see docs/TENANCY.md
 pnpm dev                 # web :3000 + worker
 ```
 

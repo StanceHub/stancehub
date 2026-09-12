@@ -4,7 +4,7 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'stancehub_app') THEN
-    RAISE EXCEPTION 'role stancehub_app missing — run deploy/postgres role bootstrap before migrate';
+    RAISE EXCEPTION 'role stancehub_app missing — run `pnpm db:bootstrap-roles` (or deploy/postgres/docker-entrypoint-initdb.d/01-roles.sql) before migrate';
   END IF;
 END
 $$;

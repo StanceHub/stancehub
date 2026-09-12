@@ -40,23 +40,27 @@ export function resolveAppDatabaseUrl(env: NodeJS.ProcessEnv = process.env): str
 
 type RoleFlags = { rolsuper: boolean; rolbypassrls: boolean };
 
+function asBool(value: unknown): boolean {
+  if (value === true || value === "t" || value === "true") return true;
+  if (value === false || value === "f" || value === "false") return false;
+  return Boolean(value);
+}
+
 function roleFlagsFromExecute(result: unknown): RoleFlags | null {
   const rows = Array.isArray(result)
     ? result
     : result && typeof result === "object" && "rows" in result && Array.isArray(result.rows)
       ? result.rows
       : [];
-  const row = rows[0] as { rolsuper?: boolean; rolbypassrls?: boolean } | undefined;
+  const row = rows[0] as { rolsuper?: unknown; rolbypassrls?: unknown } | undefined;
   if (!row) return null;
   return {
-    rolsuper: Boolean(row.rolsuper),
-    rolbypassrls: Boolean(row.rolbypassrls),
+    rolsuper: asBool(row.rolsuper),
+    rolbypassrls: asBool(row.rolbypassrls),
   };
 }
 
-/** Refuse app pool when TENANCY_RLS=1 if current_user can bypass RLS (incl. docker superuser). */
-export async function assertAppDatabaseRole(db: Database): Promise<void> {
-  if (!isTenancyRlsEnabled()) return;
+async function currentUserRoleFlags(db: Database): Promise<RoleFlags> {
   const result = await db.execute(sql`
     SELECT rolsuper, rolbypassrls
     FROM pg_roles
@@ -66,9 +70,30 @@ export async function assertAppDatabaseRole(db: Database): Promise<void> {
   if (!flags) {
     throw new Error("TENANCY_RLS=1: could not resolve current_user role flags");
   }
+  return flags;
+}
+
+/** Refuse app pool when TENANCY_RLS=1 if current_user can bypass RLS (incl. docker superuser). */
+export async function assertAppDatabaseRole(db: Database): Promise<void> {
+  if (!isTenancyRlsEnabled()) return;
+  const flags = await currentUserRoleFlags(db);
   if (flags.rolsuper || flags.rolbypassrls) {
     throw new Error(
       "TENANCY_RLS=1 requires DATABASE_URL as a non-superuser, NOBYPASSRLS role (e.g. stancehub_app); do not use DATABASE_URL_ADMIN for the web app",
+    );
+  }
+}
+
+/**
+ * Refuse migrate/worker pool when TENANCY_RLS=1 if current_user cannot bypass FORCE RLS.
+ * Prevents silent empty drains when DATABASE_URL_ADMIN is swapped with the app role.
+ */
+export async function assertAdminDatabaseRole(db: Database): Promise<void> {
+  if (!isTenancyRlsEnabled()) return;
+  const flags = await currentUserRoleFlags(db);
+  if (!flags.rolsuper && !flags.rolbypassrls) {
+    throw new Error(
+      "TENANCY_RLS=1 requires DATABASE_URL_ADMIN as a superuser or BYPASSRLS role (migrate/worker escape hatch); do not point it at stancehub_app",
     );
   }
 }

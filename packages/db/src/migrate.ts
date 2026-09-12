@@ -2,7 +2,11 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDb } from "./client";
-import { isTenancyRlsEnabled, resolveAdminDatabaseUrl } from "./tenancy-rls";
+import {
+  assertAdminDatabaseRole,
+  isTenancyRlsEnabled,
+  resolveAdminDatabaseUrl,
+} from "./tenancy-rls";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.join(__dirname, "..", "migrations");
@@ -15,6 +19,9 @@ async function main() {
       "postgresql://stancehub:stancehub@localhost:5432/stancehub");
 
   const db = createDb(connectionString);
+  if (isTenancyRlsEnabled(process.env)) {
+    await assertAdminDatabaseRole(db);
+  }
   console.log("Running migrations from", migrationsFolder);
   await migrate(db, { migrationsFolder });
   console.log("Migrations complete");
