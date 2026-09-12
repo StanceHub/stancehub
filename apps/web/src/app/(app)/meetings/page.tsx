@@ -1,18 +1,19 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
+import { meetingPath } from "@stancehub/shared";
 import { meetings } from "@stancehub/db";
+import { AppNav } from "@/components/app-nav";
 import { withOrgScope } from "@/server/db";
-import { requireOrgSession } from "@/server/org";
+import { requireAppAccess } from "@/server/app-access";
 import { DeleteMeetingButton } from "./delete-button";
 import { PingButton } from "./ping-button";
 import { ReembedAllButton } from "./reembed-all-button";
 import { RetryButton } from "./retry-button";
-import { SignOutButton } from "./sign-out-button";
 import { UploadForm } from "./upload-form";
 
 export default async function MeetingsPage() {
-  const access = await requireOrgSession();
+  const access = await requireAppAccess();
   if (!access) redirect("/login");
 
   const orgId = access.organizationId;
@@ -29,43 +30,36 @@ export default async function MeetingsPage() {
 
   return (
     <main>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Meetings</h1>
-        <SignOutButton />
-      </div>
-      <p>
-        Signed in as <strong>{access.session.user.email}</strong>
-        {orgId ? (
-          <>
-            {" "}
-            · active org <code>{orgId}</code>
-          </>
-        ) : (
-          <> · no active organization</>
-        )}
-      </p>
-      <p>
-        <Link href="/search">Search vault</Link>
-        {" · "}
-        <Link href="/ask">Ask</Link>
-        {" · "}
-        <Link href="/tasks">Tasks</Link>
-      </p>
-      <UploadForm />
-      <PingButton />
+      <AppNav
+        email={access.session.user.email}
+        organizationLabel={access.organizationName ?? (orgId ? orgId : null)}
+      />
+      <h1>Meetings</h1>
+      {!orgId ? (
+        <p>No active organization. Upload and vault actions require an active org session.</p>
+      ) : null}
+      {orgId ? <UploadForm /> : null}
       {access.isAdmin ? (
-        <p style={{ marginTop: 12 }}>
-          <ReembedAllButton />
-        </p>
+        <section style={{ marginTop: 16 }}>
+          <h2>Admin</h2>
+          <p style={{ marginBottom: 8 }}>
+            <ReembedAllButton />
+          </p>
+          <h3>Operator</h3>
+          <p style={{ color: "#555", maxWidth: 520 }}>
+            Queue connectivity check for operators. Not part of the meeting vault product loop.
+          </p>
+          <PingButton />
+        </section>
       ) : null}
       <h2 style={{ marginTop: 24 }}>List</h2>
       {rows.length === 0 ? (
-        <p>No meetings yet.</p>
+        <p>{orgId ? "No meetings yet. Upload a transcript to start." : "No meetings to show."}</p>
       ) : (
         <ul>
           {rows.map((meeting) => (
             <li key={meeting.id}>
-              {meeting.title}{" "}
+              <Link href={meetingPath(meeting.id)}>{meeting.title}</Link>{" "}
               <small>
                 (embed: {meeting.pipelineStatus}
                 {meeting.summaryStatus ? ` · summary: ${meeting.summaryStatus}` : ""})

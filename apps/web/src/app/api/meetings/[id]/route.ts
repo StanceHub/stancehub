@@ -7,7 +7,8 @@ import {
 } from "@stancehub/db";
 import { isLiveEmbedJobState } from "@stancehub/shared";
 import { withOrgScope } from "@/server/db";
-import { requireAdminOrg } from "@/server/org";
+import { getMeetingDetailForOrg } from "@/server/meeting-detail";
+import { requireActiveOrg, requireAdminOrg } from "@/server/org";
 import { getEmbedJob } from "@/server/queue";
 import { getMeetingForOrg, NOT_FOUND_BODY } from "@/server/tenancy";
 
@@ -15,6 +16,36 @@ const OPEN_PIPELINE = ["pending", "embedding"] as const;
 
 function isOpenPipeline(status: string) {
   return (OPEN_PIPELINE as readonly string[]).includes(status);
+}
+
+/** Org-scoped meeting detail (members + admins). Wrong-org / missing → uniform 404. */
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const gate = await requireActiveOrg();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
+  const { id } = await context.params;
+  if (!id?.trim()) {
+    return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
+  }
+
+  try {
+    const detail = await withOrgScope(gate.access.organizationId, (tx) =>
+      getMeetingDetailForOrg(tx, {
+        organizationId: gate.access.organizationId,
+        meetingId: id,
+      }),
+    );
+    if (!detail) {
+      return NextResponse.json(NOT_FOUND_BODY, { status: 404 });
+    }
+    return NextResponse.json(detail);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "load failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function DELETE(

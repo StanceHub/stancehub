@@ -1,15 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
-
-type Citation = {
-  meetingId: string;
-  chunkId: string;
-  meetingTitle?: string;
-  quote: string;
-  startMs?: number | null;
-  endMs?: number | null;
-};
+import { meetingPath, type Citation } from "@stancehub/shared";
+import { MarkdownAnswer } from "./markdown-answer";
 
 export function AskForm() {
   const [q, setQ] = useState("");
@@ -32,6 +26,7 @@ export function AskForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ q }),
       });
+      const retryAfter = res.headers.get("Retry-After");
       const data = (await res.json()) as {
         error?: string;
         answer?: string;
@@ -39,7 +34,12 @@ export function AskForm() {
         miss?: boolean;
       };
       if (!res.ok) {
-        setError(data.error ?? "ask failed");
+        const base = data.error ?? "ask failed";
+        if (res.status === 429 && retryAfter) {
+          setError(`${base} (retry after ${retryAfter}s)`);
+        } else {
+          setError(base);
+        }
         return;
       }
       setAnswer(data.answer ?? "");
@@ -62,25 +62,35 @@ export function AskForm() {
           aria-label="Question"
         />
         <button type="submit" disabled={pending || !q.trim()}>
-          {pending ? "…" : "Ask"}
+          {pending ? "Asking…" : "Ask"}
         </button>
       </form>
-      {error ? <p>{error}</p> : null}
+      {error ? <p role="alert">{error}</p> : null}
       {answer ? (
         <section style={{ marginTop: 16 }}>
           <h2>Answer</h2>
-          {miss ? <p>
-            <em>Miss</em>
-          </p> : null}
-          <p style={{ whiteSpace: "pre-wrap" }}>{answer}</p>
+          {miss ? (
+            <p>
+              <em>Miss</em>
+            </p>
+          ) : null}
+          <MarkdownAnswer source={answer} citations={citations} />
           <h3>Citations</h3>
           {citations.length === 0 ? (
             <p>No citations returned.</p>
           ) : (
             <ul>
               {citations.map((citation) => (
-                <li key={citation.chunkId}>
-                  <strong>{citation.meetingTitle ?? citation.meetingId}</strong>
+                <li
+                  key={`${citation.n}-${citation.chunkId}`}
+                  id={`cite-${citation.n}`}
+                  tabIndex={-1}
+                  style={{ marginBottom: 12 }}
+                >
+                  <strong>[{citation.n}]</strong>{" "}
+                  <Link href={meetingPath(citation.meetingId, { tMs: citation.startMs })}>
+                    {citation.meetingTitle ?? citation.meetingId}
+                  </Link>
                   {citation.startMs != null || citation.endMs != null
                     ? ` (${citation.startMs ?? "?"}-${citation.endMs ?? "?"}ms)`
                     : null}

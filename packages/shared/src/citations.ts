@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const citationSchema = z.object({
+  /** 1-based excerpt index as cited in the answer (`[n]`). */
+  n: z.number().int().positive(),
   meetingId: z.string().min(1),
   chunkId: z.string().min(1),
   meetingTitle: z.string().optional(),

@@ -5,8 +5,11 @@ import {
   citationSchema,
   embedJobId,
   embedMeetingPayloadSchema,
+  formatMeetingTimestamp,
   isAdmin,
   isLiveEmbedJobState,
+  meetingPath,
+  parseMeetingTimeParam,
   pingJobPayloadSchema,
 } from "./index";
 
@@ -49,9 +52,35 @@ describe("jobs", () => {
   });
 });
 
+describe("meeting links", () => {
+  it("builds stable meeting paths with optional tMs", () => {
+    expect(meetingPath("m1")).toBe("/meetings/m1");
+    expect(meetingPath("m1", { tMs: 1500 })).toBe("/meetings/m1?t=1500");
+    expect(meetingPath("m1", { tMs: null })).toBe("/meetings/m1");
+    expect(meetingPath("m1", { tMs: -1 })).toBe("/meetings/m1");
+    expect(meetingPath("a/b")).toBe("/meetings/a%2Fb");
+  });
+
+  it("parses t query values fail-closed on junk", () => {
+    expect(parseMeetingTimeParam("0")).toBe(0);
+    expect(parseMeetingTimeParam("1200")).toBe(1200);
+    expect(parseMeetingTimeParam("-1")).toBeNull();
+    expect(parseMeetingTimeParam("1.5")).toBeNull();
+    expect(parseMeetingTimeParam("nope")).toBeNull();
+    expect(parseMeetingTimeParam(undefined)).toBeNull();
+  });
+
+  it("formats timestamps for display", () => {
+    expect(formatMeetingTimestamp(0)).toBe("0:00");
+    expect(formatMeetingTimestamp(65_000)).toBe("1:05");
+    expect(formatMeetingTimestamp(3_665_000)).toBe("1:01:05");
+  });
+});
+
 describe("citations", () => {
-  it("requires meeting, chunk, and quote", () => {
+  it("requires meeting, chunk, quote, and excerpt index n", () => {
     const citation = citationSchema.parse({
+      n: 1,
       meetingId: "m1",
       chunkId: "c1",
       quote: "we decided on postgres",
@@ -59,6 +88,7 @@ describe("citations", () => {
     });
     expect(citation.quote).toContain("postgres");
     expect(citation.startMs).toBe(1000);
+    expect(citation.n).toBe(1);
   });
 });
 
@@ -83,6 +113,7 @@ describe("meeting summary payload", () => {
       },
     ]);
     expect(citations[0]?.chunkId).toBe("c1");
+    expect(citations[0]?.n).toBe(1);
   });
 
   it("returns no citations when the answer omits [n] markers", async () => {
