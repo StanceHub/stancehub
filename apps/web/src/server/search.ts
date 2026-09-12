@@ -8,7 +8,7 @@ import {
   type SearchHit,
 } from "@stancehub/db";
 import { getProcessEnvRecord } from "@/env";
-import { getDb } from "@/server/db";
+import { withOrgScope } from "@/server/db";
 
 export const SEARCH_VECTOR_TIMEOUT_MS = 8000;
 
@@ -54,7 +54,6 @@ export async function searchVault(input: {
     return { fused: [], keyword: [], vector: [], keywordError: null, vectorError: null };
   }
 
-  const db = getDb();
   const pool = retrievalPoolSize(limit);
   let keyword: SearchHit[] = [];
   let keywordError: string | null = null;
@@ -62,12 +61,15 @@ export async function searchVault(input: {
   if (mode !== "vector") {
     const keywordStarted = performance.now();
     try {
-      keyword = await searchChunksByKeyword(db, {
-        organizationId: input.organizationId,
-        query,
-        limit: pool,
-        statementTimeoutMs: SEARCH_STATEMENT_TIMEOUT_MS,
-      });
+      // Scope only the DB work — never hold the txn across embedding HTTP.
+      keyword = await withOrgScope(input.organizationId, (tx) =>
+        searchChunksByKeyword(tx, {
+          organizationId: input.organizationId,
+          query,
+          limit: pool,
+          statementTimeoutMs: SEARCH_STATEMENT_TIMEOUT_MS,
+        }),
+      );
     } catch (error) {
       keywordError = errorMessage(error, "keyword search failed");
       if (mode === "keyword") {
@@ -121,11 +123,13 @@ export async function searchVault(input: {
     });
     const [embedding] = await client.embed([query]);
     if (!embedding) throw new Error("empty embedding");
-    const vector = await searchChunksByVector(db, {
-      organizationId: input.organizationId,
-      embedding,
-      limit: pool,
-    });
+    const vector = await withOrgScope(input.organizationId, (tx) =>
+      searchChunksByVector(tx, {
+        organizationId: input.organizationId,
+        embedding,
+        limit: pool,
+      }),
+    );
     if (keywordError && vector.length === 0) throw new Error(keywordError);
     const fused = fuseAvailableLists(keyword, vector, limit);
     const vectorMs = Math.round(performance.now() - vectorStarted);

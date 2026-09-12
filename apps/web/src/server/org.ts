@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { member } from "@stancehub/db";
 import { isAdmin } from "@stancehub/shared";
-import { getDb } from "@/server/db";
+import { getDb, ensureAppDbRole } from "@/server/db";
 import { requireSession } from "@/server/rbac";
 
 export type OrgSession =
@@ -19,6 +19,7 @@ export type OrgSession =
 export async function requireOrgSession(): Promise<OrgSession | null> {
   const session = await requireSession();
   if (!session) return null;
+  await ensureAppDbRole();
   const organizationId = session.session.activeOrganizationId;
   if (!organizationId) return { session, organizationId: null, isAdmin: false };
 

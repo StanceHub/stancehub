@@ -6,7 +6,7 @@ import {
   removeMeetingChunksAndStats,
 } from "@stancehub/db";
 import { isLiveEmbedJobState } from "@stancehub/shared";
-import { getDb } from "@/server/db";
+import { withOrgScope } from "@/server/db";
 import { requireAdminOrg } from "@/server/org";
 import { getEmbedJob } from "@/server/queue";
 import { getMeetingForOrg, NOT_FOUND_BODY } from "@/server/tenancy";
@@ -26,10 +26,9 @@ export async function DELETE(
 
   const { id } = await context.params;
   const organizationId = gate.access.organizationId;
-  const db = getDb();
 
   try {
-    const result = await db.transaction(async (tx) => {
+    const result = await withOrgScope(organizationId, async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`embed-retry:${id}`}))`);
 
       const current = await getMeetingForOrg(tx, {

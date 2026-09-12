@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import postgres from "postgres";
 import { Redis } from "ioredis";
+import { ensureAppDbRole } from "@/server/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export async function GET() {
       const sql = postgres(databaseUrl, { max: 1 });
       await sql`select 1`;
       await sql.end({ timeout: 2 });
+      // When TENANCY_RLS=1, refuse a bypass/superuser app URL (same assert as vault boot).
+      await ensureAppDbRole();
       checks.database = "ok";
     } catch (err) {
       checks.database = "error";

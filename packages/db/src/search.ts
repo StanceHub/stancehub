@@ -1,7 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { Database } from "./client";
 import { chunks, meetings } from "./schema/index";
 import { DEFAULT_EMBEDDING_DIMENSIONS } from "./schema/vault";
+import { isDbTransaction, type DbOrTx } from "./tenancy-rls";
 
 export const BM25_K1 = 1.2;
 export const BM25_B = 0.75;
@@ -78,8 +78,23 @@ function toHit(row: RankedChunkRow): SearchHit {
   };
 }
 
+async function withSearchStatementTimeout<T>(
+  db: DbOrTx,
+  statementTimeoutMs: number,
+  run: (tx: DbOrTx) => Promise<T>,
+): Promise<T> {
+  if (isDbTransaction(db)) {
+    await db.execute(sql`select set_config('statement_timeout', ${String(statementTimeoutMs)}, true)`);
+    return run(db);
+  }
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('statement_timeout', ${String(statementTimeoutMs)}, true)`);
+    return run(tx);
+  });
+}
+
 export async function searchChunksByKeyword(
-  db: Database,
+  db: DbOrTx,
   input: {
     organizationId: string;
     query: string;
@@ -92,9 +107,7 @@ export async function searchChunksByKeyword(
   const limit = clampLimit(input.limit);
   const statementTimeoutMs = input.statementTimeoutMs ?? SEARCH_STATEMENT_TIMEOUT_MS;
 
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('statement_timeout', ${String(statementTimeoutMs)}, true)`);
-
+  return withSearchStatementTimeout(db, statementTimeoutMs, async (tx) => {
     const result = await tx.execute(sql`
       WITH params AS (
         SELECT
@@ -199,7 +212,7 @@ export async function searchChunksByKeyword(
 }
 
 export async function searchChunksByVector(
-  db: Database,
+  db: DbOrTx,
   input: {
     organizationId: string;
     embedding: number[];
@@ -212,8 +225,7 @@ export async function searchChunksByVector(
   const literal = vectorLiteral(input.embedding);
   const statementTimeoutMs = input.statementTimeoutMs ?? SEARCH_STATEMENT_TIMEOUT_MS;
 
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('statement_timeout', ${String(statementTimeoutMs)}, true)`);
+  return withSearchStatementTimeout(db, statementTimeoutMs, async (tx) => {
     const rows = await tx
       .select({
         chunkId: chunks.id,

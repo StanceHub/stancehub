@@ -1,8 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { meetings, tasks, type Database } from "@stancehub/db";
-
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-type DbOrTx = Database | Tx;
+import { meetings, tasks, type DbOrTx } from "@stancehub/db";
 
 /** Org-scoped meeting load. Null means not found **or** other org (uniform 404). */
 export async function getMeetingForOrg(

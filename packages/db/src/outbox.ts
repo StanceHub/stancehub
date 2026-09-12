@@ -10,9 +10,7 @@ import {
 import type { Database } from "./client";
 import { meetings } from "./schema/meetings";
 import { jobOutbox, type JobOutboxRow } from "./schema/outbox";
-
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-type DbOrTx = Database | Tx;
+import type { DbOrTx } from "./tenancy-rls";
 
 export type OutboxJobName = typeof JOB_NAMES.embedMeeting | typeof JOB_NAMES.summarizeMeeting;
 
@@ -72,7 +70,7 @@ export async function listPendingOutbox(db: Database, limit: number) {
 }
 
 export async function findOutboxForMeetingGeneration(
-  db: Database,
+  db: DbOrTx,
   input: { jobName: OutboxJobName; meetingId: string; generation: number },
 ) {
   const [row] = await db
@@ -89,7 +87,7 @@ export async function findOutboxForMeetingGeneration(
   return row ?? null;
 }
 
-export async function markOutboxPublished(db: Database, outboxId: string) {
+export async function markOutboxPublished(db: DbOrTx, outboxId: string) {
   const now = new Date();
   await db
     .update(jobOutbox)
@@ -102,7 +100,7 @@ export async function markOutboxPublished(db: Database, outboxId: string) {
     .where(and(eq(jobOutbox.id, outboxId), eq(jobOutbox.status, OUTBOX_STATUS.pending)));
 }
 
-export async function markOutboxSuperseded(db: Database, outboxId: string) {
+export async function markOutboxSuperseded(db: DbOrTx, outboxId: string) {
   await db
     .update(jobOutbox)
     .set({ status: OUTBOX_STATUS.superseded, updatedAt: new Date() })
@@ -110,7 +108,7 @@ export async function markOutboxSuperseded(db: Database, outboxId: string) {
 }
 
 export async function markOutboxPublishAttemptFailed(
-  db: Database,
+  db: DbOrTx,
   outboxId: string,
   message: string,
 ) {
@@ -124,7 +122,7 @@ export async function markOutboxPublishAttemptFailed(
     .where(and(eq(jobOutbox.id, outboxId), eq(jobOutbox.status, OUTBOX_STATUS.pending)));
 }
 
-export async function markOutboxFailed(db: Database, outboxId: string, message: string) {
+export async function markOutboxFailed(db: DbOrTx, outboxId: string, message: string) {
   const updated = await db
     .update(jobOutbox)
     .set({
@@ -137,7 +135,7 @@ export async function markOutboxFailed(db: Database, outboxId: string, message: 
   return updated.length > 0;
 }
 
-export async function markOutboxReconcileReadd(db: Database, outboxId: string) {
+export async function markOutboxReconcileReadd(db: DbOrTx, outboxId: string) {
   await db
     .update(jobOutbox)
     .set({ reconcileReaddAt: new Date(), updatedAt: new Date() })
@@ -177,7 +175,7 @@ const OPEN_PIPELINE = ["pending", "embedding"] as const;
 const OPEN_SUMMARY = ["pending", "running"] as const;
 
 export async function meetingOpenForOutbox(
-  db: Database,
+  db: DbOrTx,
   row: Pick<JobOutboxRow, "jobName" | "meetingId" | "generation" | "organizationId">,
 ) {
   const [meeting] = await db
@@ -208,7 +206,7 @@ export async function meetingOpenForOutbox(
 }
 
 export async function failMeetingForOutbox(
-  db: Database,
+  db: DbOrTx,
   row: Pick<JobOutboxRow, "jobName" | "meetingId" | "generation" | "organizationId">,
   message: string,
 ) {

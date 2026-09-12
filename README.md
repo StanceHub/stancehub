@@ -28,6 +28,8 @@ pnpm install
 pnpm compose:up          # containers: stancehub-postgres (:5433), stancehub-redis (:6379)
 pnpm db:generate         # first time / after schema changes
 pnpm db:migrate
+# Existing Postgres volumes: run `pnpm db:bootstrap-roles` once before migrate (creates stancehub_app).
+# Optional Enterprise RLS: set TENANCY_RLS=1 + dual URLs — see docs/TENANCY.md
 pnpm dev                 # web :3000 + worker
 ```
 
@@ -50,4 +52,4 @@ deploy/            docker-compose.yml
 
 ## Contributing
 
-See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs). Accepted limits: `docs/KNOWN-GAPS.md`. Embedding vs chat env: `docs/LLM-PROFILES.md`.
+See `CONTRIBUTING.md` and `docs/CLA.md` (CLA bot on PRs). Accepted limits: `docs/KNOWN-GAPS.md`. Embedding vs chat env: `docs/LLM-PROFILES.md`. Tenancy / RLS: `docs/TENANCY.md`.

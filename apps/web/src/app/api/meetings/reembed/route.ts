@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { meetings } from "@stancehub/db";
-import { getDb } from "@/server/db";
+import { withOrgScope } from "@/server/db";
 import { prepareMeetingEmbedRetry, publishPreparedMeetingEmbed } from "@/server/embed-retry";
 import { requireAdminOrg } from "@/server/org";
 
@@ -11,12 +11,13 @@ export async function POST() {
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const organizationId = gate.access.organizationId;
 
-  const db = getDb();
-  const rows = await db
-    .select({ id: meetings.id })
-    .from(meetings)
-    .where(eq(meetings.organizationId, organizationId))
-    .orderBy(asc(meetings.createdAt));
+  const rows = await withOrgScope(organizationId, (tx) =>
+    tx
+      .select({ id: meetings.id })
+      .from(meetings)
+      .where(eq(meetings.organizationId, organizationId))
+      .orderBy(asc(meetings.createdAt)),
+  );
 
   let queued = 0;
   let outboxPending = 0;
